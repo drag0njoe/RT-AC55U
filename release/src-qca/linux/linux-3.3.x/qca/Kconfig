@@ -1,0 +1,7 @@
+menu "QCA Proprietary software"
+
+####################
+# qca wifi driver  #
+####################
+source "drivers/net/wireless/qca/Kconfig"
+endmenu

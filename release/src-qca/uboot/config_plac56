@@ -1,0 +1,25 @@
+export AH_CAL_IN_FLASH_PCI=1
+export AR7240_EMU=1
+export ATH_CFG_SGMII=1
+export ATH_CONFIG_SWAP_SGMII=0
+export ATH_GMAC0_MII=ATHR_SGMII
+export ATH_GMAC1_MII=ATHR_SGMII
+export ATH_GMAC_GE0_IS_CONNECTED=1
+export ATH_S17_MAC0_SGMII=1
+export ATH_SGMII_FORCED=1
+export BIG_ENDIAN_HOST=1
+export BUILD_CONFIG=_vlan
+export BUILD_TYPE=jffs2
+export BUS=dual
+export CFG_BOARD_TYPE=ap152
+export COMPRESSED_UBOOT=0
+export ddr_cas=5
+export ETH_CONFIG=_s17
+export FLASH_SIZE=16
+export pll=CFG_PLL_775_650_258
+
+export ASUS_PRODUCT=1
+export PLC_PARTS=1
+export RESCUE_BLINK_WIFI_LED=1
+
+export BUILD_NAME=PL-AC56

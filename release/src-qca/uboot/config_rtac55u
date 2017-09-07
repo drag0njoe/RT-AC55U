@@ -1,0 +1,32 @@
+export AH_CAL_IN_FLASH_PCI=1
+export AR7240_EMU=1
+export AR9100=0
+export ATH_CFG_SGMII=1
+export ATH_CONFIG_SWAP_SGMII=0
+export ATH_GMAC0_MII=ATHR_RGMII
+export ATH_GMAC1_MII=ATHR_SGMII
+export ATH_GMAC_GE0_IS_CONNECTED=1
+export ATH_GMAC_GE1_IS_CONNECTED=1
+export ATH_RGMII_CAL=1
+export ATH_S17_MAC0_SGMII=1
+export ATH_S17_PHY0_WAN=1
+export ATH_SGMII_FORCED=1
+export BUS=dual
+export CFG_BOARD_TYPE=ap135
+export COMPRESSED_UBOOT=0
+export ETH_CONFIG=_s17
+export FLASH_SIZE=16
+
+# Allow SPI boot code to erase/program NAND Flash
+#export ATH_DUAL_FLASH=1
+
+export BOOT_FROM_NAND=1
+
+export UBI_SUPPORT=1
+export DUAL_TRX=1
+export ASUS_PRODUCT=1
+export LSDK_NART_SUPPORT=1
+
+export HAVE_WAN_RED_LED=1
+export BUILD_NAME=RT-AC55U
+export STAGE1_NAME=rombootdrv_rtac55u
