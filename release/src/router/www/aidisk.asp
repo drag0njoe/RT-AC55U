@@ -14,6 +14,8 @@
 <script type="text/javascript" src="/state.js"></script>
 <script type="text/javascript" src="/popup.js"></script>
 <script type="text/javascript" src="/help.js"></script>
+<script type="text/javaScript" src="/js/jquery.js"></script>
+<script type="text/javascript" src="/js/asus_eula.js"></script>
 <script>
 <% get_AiDisk_status(); %>
 var account_num;
@@ -24,9 +26,6 @@ var page = parseInt('<% get_parameter("page"); %>'-'0');
 
 function initial(){
 	show_menu();
-	document.getElementById("_APP_Installation").innerHTML = '<table><tbody><tr><td><div class="_APP_Installation""></div></td><td><div style="width:120px;"><#Menu_usb_application#></div></td></tr></tbody></table>';
-	document.getElementById("_APP_Installation").className = "menu_clicked";
-
 	document.getElementById("statusframe").style.display = "block";
 	
 	if(page == 2)
@@ -303,7 +302,7 @@ function getASUSDDNS_enable(){
 			<div id="tabMenu"></div>
 
 		<!--==============Beginning of hint content=============-->
-<table id="AiDiskFormTitle" width="100%" height="100%" border="0" bgcolor="#4d595d" cellpadding="0"  cellspacing="0" style="margin-top:-140px;-webkit-border-radius:3px;-moz-border-radius:3px;border-radius:3px;">
+<table id="FormTitle" width="100%" height="100%" border="0" bgcolor="#4d595d" cellpadding="0"  cellspacing="0" style="margin-top:-140px;-webkit-border-radius:3px;-moz-border-radius:3px;border-radius:3px;">
   <tr>
 		<td align="left" valign="top">
 			<iframe id="sub_frame" src="" width="760px" height="710px" frameborder="0" scrolling="no" style="position:relative;-webkit-border-radius:3px;-moz-border-radius:3px;border-radius:3px;"></iframe>

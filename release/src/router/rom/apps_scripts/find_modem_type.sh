@@ -1,18 +1,26 @@
 #!/bin/sh
+# environment variable: unit - modem unit.
 # echo "This is a script to find the modem type out."
 
 
-modem_act_path=`nvram get usb_modem_act_path`
 node_home=/sys/devices
-home="$node_home/"`cd $node_home && find -name "$modem_act_path" 2>/dev/null`
 modem_enable=`nvram get modem_enable`
+usb_gobi2=`nvram get usb_gobi2`
+
+if [ -z "$unit" ] || [ "$unit" -eq "0" ]; then
+	prefix="usb_modem_"
+else
+	prefix="usb_modem${unit}_"
+fi
+
+modem_act_path=`nvram get ${prefix}act_path`
+home="$node_home/"`cd $node_home && find -name "$modem_act_path" 2>/dev/null`
 modem_vid=`cat $home/idVendor 2>/dev/null`
 modem_pid=`cat $home/idProduct 2>/dev/null`
-usb_gobi2=`nvram get usb_gobi2`
 
 if [ "$modem_vid" == "" -o "$modem_pid" == "" ]; then
 	echo "type=unknown"
-	nvram set usb_modem_act_type=
+	nvram set ${prefix}act_type=
 	exit 0
 fi
 
@@ -40,7 +48,7 @@ _find_act_type(){
 			got_other=1
 			echo "rndis"
 			break
-		elif [ "$t" == "asix" ]; then
+		elif [ "$t" == "asix" ] || [ "$t" == "ax88179_178a" ]; then
 			got_other=1
 			echo "asix"
 			break
@@ -87,5 +95,5 @@ elif [ "$modem_vid" == "19d2" -a "$modem_pid" == "1589" ]; then # ZTE MF193A
 fi
 echo "type=$type."
 
-nvram set usb_modem_act_type=$type
+nvram set ${prefix}act_type=$type
 

@@ -108,6 +108,7 @@ void convert_dsl_wan()
 		nvram_set("wan_pppoe_mru",nvram_safe_get("dslx_pppoe_mtu"));
 		nvram_set("wan_pppoe_service",nvram_safe_get("dslx_pppoe_service"));
 		nvram_set("wan_pppoe_ac",nvram_safe_get("dslx_pppoe_ac"));
+		nvram_set("wan_pppoe_hostuniq",nvram_safe_get("dslx_pppoe_hostuniq"));
 		nvram_set("wan_pppoe_options_x",nvram_safe_get("dslx_pppoe_options"));
 		nvram_set("wan_hwaddr_x",nvram_safe_get("dslx_hwaddr"));
 
@@ -130,6 +131,7 @@ void convert_dsl_wan()
 		nvram_set("wan0_pppoe_mru",nvram_safe_get("dslx_pppoe_mtu"));
 		nvram_set("wan0_pppoe_service",nvram_safe_get("dslx_pppoe_service"));
 		nvram_set("wan0_pppoe_ac",nvram_safe_get("dslx_pppoe_ac"));
+		nvram_set("wan0_pppoe_hostuniq",nvram_safe_get("dslx_pppoe_hostuniq"));
 		nvram_set("wan0_pppoe_options_x",nvram_safe_get("dslx_pppoe_options"));
 		nvram_set("wan0_hwaddr_x",nvram_safe_get("dslx_hwaddr"));					
 	}
@@ -394,7 +396,7 @@ void start_dsl()
 		for(x=2; x<=config_num; x++) {
 			sprintf(wan_num, "%d", x);
 #ifdef RTCONFIG_RALINK
-			sprintf(wan_if, "eth2.1.%d", x);
+			snprintf(wan_if, sizeof(wan_if), "eth2.1.%d", x);
 			eval("vconfig", "add", "eth2.1", wan_num);
 #else
 			/* create IPTV PVC interface and begin from eth0.3881 */

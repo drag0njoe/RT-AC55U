@@ -39,6 +39,10 @@
 #include <ft_build.h>
 #endif
 
+#if defined(RPAC66)
+#include <cmd_tftpServer.h>
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
  /*cmd_boot.c*/
@@ -190,6 +194,9 @@ static char* get_addr_name(ulong addr)
 	return name;
 }
 
+#if defined(MXIC_EN4B_SUPPORT)
+uchar fwimg[CFG_FLASH_SIZE - CFG_BOOTLOADER_SIZE - CFG_CONFIG_SIZE - CFG_FACTORY_SIZE];
+#endif
 
 /* Check firmware image at load_addr or argv[1].
  * @return:
@@ -218,7 +225,9 @@ int verify_kernel_image (int argc, char *argv[], ulong *pAddr, ulong *pData, ulo
 		len  = ntohl(hdr->ih_size);
 		goto skip;
 	}
-
+#if defined(RPAC66)
+	  leds_off();
+#endif
 	SHOW_BOOT_PROGRESS (1);
 	printf ("## Checking %s at %08lx ...\n", get_addr_name(addr), addr);
 
@@ -232,6 +241,11 @@ int verify_kernel_image (int argc, char *argv[], ulong *pAddr, ulong *pData, ulo
 #if defined(CFG_ENV_IS_IN_NAND)
 	if (addr >= CFG_FLASH_BASE)
 		ra_flash_read((uchar*) &header, addr, sizeof(image_header_t));
+	else
+#endif
+#if defined(MXIC_EN4B_SUPPORT)
+	if (addr == CFG_KERN_ADDR)
+		ath_spi_read_data(addr, &header, sizeof(image_header_t));
 	else
 #endif
 		memmove (&header, (char *)addr, sizeof(image_header_t));
@@ -307,14 +321,25 @@ int verify_kernel_image (int argc, char *argv[], ulong *pAddr, ulong *pData, ulo
 		data = load_addr;
 	}
 #endif
-
 	if (verify) {
 		puts ("   Verifying Checksum ... ");
+#if defined(MXIC_EN4B_SUPPORT)
+		if (addr == CFG_KERN_ADDR) {
+			if (len > 0x1000000)
+				set_4byte(1);
+			ath_spi_read_data(data, fwimg, len);
+			data = fwimg;
+		}
+#endif
 		if (crc32 (0, (uchar *)data, len) != ntohl(hdr->ih_dcrc)) {
 			printf ("Bad Data CRC\n");
 			SHOW_BOOT_PROGRESS (-3);
 			return -3;
 		}
+#if defined(RPAC66)
+		if (!rescue_mode)
+	  		leds_on();
+#endif
 		puts ("OK\n");
 	}
 	SHOW_BOOT_PROGRESS (4);
@@ -351,6 +376,9 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	verify = (s && (*s == 'n')) ? 0 : 1;
 
 #if defined(ASUS_PRODUCT)
+#if defined(MAPAC1750)
+	blue_led_on();
+#endif
 	if ((i = verify_kernel_image(argc, argv, &addr, &data, &len)) <= 0)
 		return 1;
 #else

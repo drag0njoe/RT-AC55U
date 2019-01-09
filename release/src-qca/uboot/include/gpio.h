@@ -8,6 +8,11 @@ enum gpio_idx_e {
 	WPS_LED,
 	WIFI_2G_LED,
 	WIFI_5G_LED,
+#if defined(MAPAC1750)
+	WIFI_B_LED,
+	WIFI_G_LED,
+	WIFI_R_LED,
+#endif
 	USB_LED,
 #if defined(RTAC55U)
 	USB3_LED,
@@ -33,6 +38,15 @@ enum gpio_idx_e {
 	WIFI_5G_GREEN_LED,
 	WIFI_5G_ORANGE_LED,
 	WIFI_5G_RED_LED,
+#elif defined(RPAC66)
+	PWR_GREEN_LED,
+	PWR_ORANGE_LED,
+	WIFI_2G_GREEN_LED,
+	WIFI_2G_BLUE_LED,
+	WIFI_2G_RED_LED,
+	WIFI_5G_GREEN_LED,
+	WIFI_5G_BLUE_LED,
+	WIFI_5G_RED_LED,
 #endif	/* RT4GAC55U */
 
 	GPIO_IDX_MAX,	/* Last item */
@@ -47,6 +61,12 @@ extern void leds_on(void);
 extern void leds_off(void);
 extern void all_leds_on(void);
 extern void all_leds_off(void);
+#if defined(MAPAC1750)
+extern void blue_led_on(void);
+extern void green_led_on(void);
+extern void red_led_on(void);
+extern void purple_led_on(void);
+#endif
 extern unsigned long DETECT(void);
 extern unsigned long DETECT_WPS(void);
 

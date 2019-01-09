@@ -33,6 +33,9 @@ flash_info_t flash_info[CFG_MAX_FLASH_BANKS];
 /*
  * statics
  */
+#if defined(MXIC_EN4B_SUPPORT)
+int en4b = 0;
+#endif
 static void ath_spi_write_enable(void);
 static void ath_spi_poll(void);
 #if !defined(ATH_SST_FLASH)
@@ -116,6 +119,20 @@ flash_erase(flash_info_t *info, int s_first, int s_last)
 		s_first, s_last, sector_size);
 
 	for (i = s_first; i <= s_last; i++) {
+#if defined(MAPAC1750)
+		int b = i % 4;
+		switch (b) {
+		case 0:
+			purple_led_on();
+			break;
+		case 2:
+			green_led_on();
+			break;
+		default:
+			;
+		}
+#endif
+
 		printf("\b\b\b\b%4d", i);
 		ath_spi_sector_erase(i * sector_size);
 	}
@@ -179,11 +196,29 @@ write_buff(flash_info_t *info, uchar *source, ulong addr, ulong len)
 	int total = 0, len_this_lp, bytes_this_page;
 	ulong dst;
 	uchar *src;
+#if defined(MAPAC1750)
+	int i = 0;
+#endif
 
 	printf("write addr: %x\n", addr);
 	addr = addr - CFG_FLASH_BASE;
 
 	while (total < len) {
+#if defined(MAPAC1750)
+		int b = i % 2400;
+		switch (b) {
+		case 0:
+			purple_led_on();
+			break;
+		case 1200:
+			green_led_on();
+			break;
+		default:
+			;
+		}
+		i++;
+#endif
+
 		src = source + total;
 		dst = addr + total;
 		bytes_this_page =
@@ -199,6 +234,53 @@ write_buff(flash_info_t *info, uchar *source, ulong addr, ulong len)
 
 	return 0;
 }
+
+#if defined(MXIC_EN4B_SUPPORT)
+void ath_spi_read_data(uint32_t addr, uint8_t *data, int len)
+{
+	int i = 0;
+	uint8_t *ptr = data;
+	uint32_t rd;
+
+	//printf("read addr: %x\n", addr);
+	addr = addr - CFG_FLASH_BASE;
+
+	ath_spi_write_enable();
+	ath_spi_bit_banger(ATH_SPI_CMD_NORM_READ);
+	ath_spi_send_addr(addr);
+
+	for (i = 0; i < len; i++) {
+#if defined(MAPAC1750)
+		int b = i % 6000000;
+		switch (b) {
+		case 0:
+			blue_led_on();
+			break;
+		case 3000000:
+			leds_off();
+			break;
+		default:
+			;
+		}
+#endif
+
+		ath_spi_delay_8();
+		rd = ath_reg_rd(ATH_SPI_RD_STATUS);
+		*ptr = rd & 0xff;
+		ptr++;
+	}
+
+	ath_spi_done();
+}
+
+void set_4byte(int enable)
+{
+	ath_spi_write_enable();
+	ath_spi_bit_banger(enable == 0 ? OPCODE_EX4B : OPCODE_EN4B);
+	ath_spi_go();
+	en4b = enable;
+}
+#endif
 #endif
 
 static void

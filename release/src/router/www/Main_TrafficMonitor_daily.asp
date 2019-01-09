@@ -56,11 +56,10 @@ function redraw(){
 	
 	for (i = 0; i < daily_history.length; ++i) {
 		h = daily_history[i];
-		ymd = getYMD(h[0]);
-		grid += makeRow(((rows & 1) ? 'odd' : 'even'), ymdText(ymd[0], ymd[1], ymd[2]), rescale(h[1]), rescale(h[2]), rescale(h[1] + h[2]));
-		++rows;
-
 		if (h[0] >= lastt) {
+			ymd = getYMD(h[0]);
+			grid += makeRow(((rows & 1) ? 'odd' : 'even'), ymdText(ymd[0], ymd[1], ymd[2]), rescale(h[1]), rescale(h[2]), rescale(h[1] + h[2]));
+			++rows;
 			lastd += h[1];
 			lastu += h[2];
 		}
@@ -69,7 +68,7 @@ function redraw(){
 	if(rows == 0)
 		grid +='<tr><td style="color:#FFCC00;" colspan="4"><#IPConnection_VSList_Norule#></td></tr>';
 
-	E('bwm-daily-grid').innerHTML = grid + '</table>';	
+	E('bwm-daily-grid').innerHTML = grid + '</table>';
 	E('last-dn').innerHTML = rescale(lastd);
 	E('last-up').innerHTML = rescale(lastu);
 	E('last-total').innerHTML = rescale(lastu + lastd);
@@ -90,7 +89,7 @@ function init(){
 	daily_history.sort(cmpHist);
 	redraw();
 	if(bwdpi_support){
-		document.getElementById('content_title').innerHTML = "<#menu5_3_2#> - <#traffic_monitor#>";
+		document.getElementById('content_title').innerHTML = "<#traffic_monitor#>";
 	}
 }
 

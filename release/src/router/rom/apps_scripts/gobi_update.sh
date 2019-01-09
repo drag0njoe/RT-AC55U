@@ -1,6 +1,13 @@
 #!/bin/sh
+# environment variable: unit - modem unit.
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
 
+
+if [ -z "$unit" ] || [ "$unit" -eq "0" ]; then
+	prefix="usb_modem_"
+else
+	prefix="usb_modem${unit}_"
+fi
 
 echo "LTE: ### START ###" | logger ;
 nvram set lte_update_status=0
@@ -11,12 +18,14 @@ if [ "`nvram get usb_path1`" != "storage" ] ; then
 fi
 
 path_dev=`nvram get usb_path1_fs_path0`
+modem_gobi_path=`nvram get modem_gobi_path`
 mounted_path=`mount |grep $path_dev |awk '{print $3}'`
+tftp_size=`nvram get modem_tftp_size`
 
-FOLDER=$mounted_path/4G-AC55U_LTE
+FOLDER=$mounted_path/$modem_gobi_path
 
 if [ ! -d ${FOLDER} ] ; then
-	echo "LTE: Folder /4G-AC55U_LTE/ not found !" | logger
+	echo "LTE: Folder /$modem_gobi_path/ not found !" | logger
 	nvram set lte_update_status=5
 	exit 1;
 fi
@@ -58,7 +67,7 @@ else
 	sleep 1 ;
 
 	echo "LTE: switch Gobi mode to internal network" | logger ;
-	chat -e '' "at+cfotamode" OK  >> /dev/ttyACM1 < /dev/ttyACM1 ;
+	sh -c "chat -e '' 'at+cfotamode' OK  >> /dev/ttyACM1 < /dev/ttyACM1" ;
 	echo $? | logger ;
 	sleep 3 ;
 
@@ -71,12 +80,16 @@ else
 	echo $? | logger ;
 	sleep 3 ;
 
-	chat -e '' "at+cexecfile=rm -rf /cache/" OK  >> /dev/ttyACM1 < /dev/ttyACM1
+	sh -c "chat -e '' 'at+cexecfile=rm -rf /cache/' OK  >> /dev/ttyACM1 < /dev/ttyACM1" ;
 	sleep 1
 
 	echo "LTE: Gobi internal network: uploading update.zip" | logger ;
 #	tftp -p -l update.zip -b 32768 192.168.225.1
-	tftp -p -l update.zip 192.168.225.1
+	if [ -n "$tftp_size" ]; then
+		tftp -b $tftp_size -p -l update.zip 192.168.225.1
+	else
+		tftp -p -l update.zip 192.168.225.1
+	fi
 	echo $? | logger ;
 	sleep 3 ;
 
@@ -87,13 +100,13 @@ else
 	sleep 1 ;
 
 	echo "LTE: updating from `cat /tmp/GobiVer` to `cat version`" | logger ;
-	chat -e '' "at+cfotaupdate" OK  >> /dev/ttyACM1 < /dev/ttyACM1
+	sh -c "chat -e '' 'at+cfotaupdate' OK  >> /dev/ttyACM1 < /dev/ttyACM1" ;
 	echo $? | logger ;
 
 	echo "LTE: Waiting for active" | logger ;
 	sleep 180 ;
 
-	actdev=`nvram get usb_modem_act_dev`
+	actdev=`nvram get ${prefix}act_dev`
 	echo "LTE: ### actdev=$actdev. ###" | logger ;
 	if [ $actdev != "usb0" ] ; then
 		sleep 5;
@@ -112,8 +125,8 @@ else
 	else
 		echo "LTE: ### SUCCESS ###" | logger ;
 		nvram set lte_update_status=1
-		if [ `ATE Get_GobiVersion` != `FAIL` ] ; then
-			nvram set usb_modem_act_swver=`ATE Get_GobiVersion`
+		if [ "`ATE Get_GobiVersion`" != "FAIL" ] ; then
+			nvram set ${prefix}act_swver=`ATE Get_GobiVersion`
 		fi
 	fi
 fi

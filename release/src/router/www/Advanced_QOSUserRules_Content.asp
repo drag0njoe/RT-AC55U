@@ -18,6 +18,8 @@
 <script type="text/javascript" src="/popup.js"></script>
 <script type="text/javascript" src="/validator.js"></script>
 <script language="JavaScript" type="text/javascript" src="/client_function.js"></script>
+<script type="text/javascript" src="/js/jquery.js"></script>
+<script type="text/javascript" src="/js/httpApi.js"></script>
 <style>
 .Portrange{
 	font-size: 12px;
@@ -38,6 +40,8 @@ function key_event(evt){
 
 function initial(){
 	show_menu();
+	//	https://www.asus.com/support/FAQ/1010951/
+	httpApi.faqURL("faq", "1010951", "https://www.asus.com", "/support/FAQ/");
 	if(bwdpi_support){
 		document.getElementById('content_title').innerHTML = "<#menu5_3_2#> - <#EzQoS_type_traditional#>";
 	}
@@ -54,9 +58,9 @@ function initial(){
 }
 
 function applyRule(){	
-		save_table();
-		showLoading();	 	
-		document.form.submit();
+	save_table();
+	showLoading();
+	document.form.submit();
 }
 
 function save_table(){
@@ -111,11 +115,31 @@ function validForm(){
 	if(!Block_chars(document.form.qos_service_name_x_0, ["<" ,">" ,"'" ,"%"])){
 				return false;		
 	}
-	
-	if(!valid_IPorMAC(document.form.qos_ip_x_0)){
-		return false;
+
+	if(document.form.qos_ip_x_0.value != "") {
+		if(document.form.qos_ip_x_0.value.split(":").length == 6) { //mac
+			if(!validator.mac_addr(document.form.qos_ip_x_0.value)) {
+				document.form.qos_ip_x_0.focus();
+				alert("<#LANHostConfig_ManualDHCPMacaddr_itemdesc#>");
+				return false;
+			}
+		}
+		else if(document.form.qos_ip_x_0.value.split(".").length == 4) { //ip
+			if(!validator.ipv4_addr(document.form.qos_ip_x_0.value)) { //single ip
+				if(!validator.ipv4_addr_range(document.form.qos_ip_x_0.value)) { //ip range
+					document.form.qos_ip_x_0.focus();
+					alert(document.form.qos_ip_x_0.value + " <#JS_validip#>");
+					return false;
+				}
+			}
+		}
+		else {
+			document.form.qos_ip_x_0.focus();
+			alert(document.form.qos_ip_x_0.value + " <#Manual_Setting_JS_invalid#>");
+			return false;
+		}
 	}
-	
+
 	replace_symbol();
 	if(document.form.qos_port_x_0.value != "" && !Check_multi_range(document.form.qos_port_x_0, 1, 65535)){
 		parse_port="";
@@ -410,41 +434,23 @@ function Check_multi_range(obj, mini, maxi){
 }
 
 // Viz add 2011.06 Load default qos rule from XML
-var url_link = "/ajax_qos_default.asp";
+var url_link = "/ajax_qos_default.xml";
 function load_QoS_rule(){		
 	free_options(document.form.qos_default_sel);
-	//add_option(document.form.qos_default_sel, "<#Select_menu_default#>", 0, 1);	
 	loadXMLDoc(url_link);		
 }
 
-var xmlhttp;
-function loadXMLDoc(url_link){
-	var ie = window.ActiveXObject;
-	if (ie){		//IE
-		xmlhttp = new ActiveXObject("Microsoft.XMLDOM");
-		xmlhttp.async = false;
-  		if (xmlhttp.readyState==4){
-			xmlhttp.load(url_link);
-			Load_XML2form();
-		}								
-	}else{	// FF Chrome Safari...
-  		xmlhttp=new XMLHttpRequest();
-  		if (xmlhttp.overrideMimeType){
-			xmlhttp.overrideMimeType('text/xml');
-		}			
-		xmlhttp.onreadystatechange = alertContents_qos;	
-		xmlhttp.open("GET",url_link,true);
-		xmlhttp.send();		
-	}					
-}
-
-function alertContents_qos()
-{
-	if (xmlhttp != null && xmlhttp.readyState != null && xmlhttp.readyState == 4){
-		if (xmlhttp.status != null && xmlhttp.status == 200){
-				Load_XML2form();
+function loadXMLDoc(){
+	$.ajax({
+		url: '/ajax_qos_default.xml',
+		dataType: 'xml',	
+		error: function(xhr){
+			setTimeout("loadXMLDoc();", 1000);
+		},
+		success: function(response){
+			Load_XML2form(response);
 		}
-	}
+	});			
 }
 
 // Load XML to Select option & save all info
@@ -455,14 +461,8 @@ var rule_port = new Array();
 var rule_proto = new Array();
 var rule_rate = new Array();
 var rule_prio = new Array();
-function Load_XML2form(){			
-			
-			if (window.ActiveXObject){		//IE			
-				QoS_rules = xmlhttp.getElementsByTagName("qos_rule");
-			}else{	// FF Chrome Safari...
-				QoS_rules = xmlhttp.responseXML.getElementsByTagName("qos_rule");
-			}
-				
+function Load_XML2form(obj){			
+			QoS_rules = obj.getElementsByTagName("qos_rule");	
 			for(i=0;i<QoS_rules.length;i++){
 				Sel_desc=QoS_rules[i].getElementsByTagName("desc");
 				Sel_port=QoS_rules[i].getElementsByTagName("port");
@@ -513,11 +513,6 @@ function change_wizard(obj){
 					document.form.qos_proto_x_0.options[2].selected = 1;
 				else if(rule_proto[j] == "ANY")
 					document.form.qos_proto_x_0.options[3].selected = 1;
-				/*	marked By Viz 2011.12 for "iptables -p"
-				else if(rule_proto[j] == "ICMP")
-					document.form.qos_proto_x_0.options[3].selected = 1;
-				else if(rule_proto[j] == "IGMP")
-					document.form.qos_proto_x_0.options[4].selected = 1;	*/
 				else
 					document.form.qos_proto_x_0.options[0].selected = 1;
 				
@@ -659,40 +654,6 @@ function replace_symbol(){
 }					
 //} Viz add 2011.11 for replace ">" to ":65535"   &   "<" to "1:" 
 
-function valid_IPorMAC(obj){
-	
-	if(obj.value == ""){
-			return true;
-	}else{
-			var hwaddr = new RegExp("(([a-fA-F0-9]{2}(\:|$)){6})", "gi");		// ,"g" whole erea match & "i" Ignore Letter
-			var legal_hwaddr = new RegExp("(^([a-fA-F0-9][aAcCeE02468])(\:))", "gi"); // for legal MAC, unicast & globally unique (OUI enforced)
-
-			if(obj.value.split(":").length >= 2){
-					if(!hwaddr.test(obj.value)){	
-							obj.focus();
-							alert("<#LANHostConfig_ManualDHCPMacaddr_itemdesc#>");							
-    					return false;
-    			}else if(!legal_hwaddr.test(obj.value)){
-    					obj.focus();
-    					alert("<#IPConnection_x_illegal_mac#>");					
-    					return false;
-    			}else
-    					return true;
-			}		
-			else if(obj.value.split("*").length >= 2){
-					if(!validator.ipSubnet(obj))
-							return false;
-					else
-							return true;				
-			}
-			else if(!validator.validIPForm(obj, 0)){
-    			return false;
-			}
-			else
-					return true;		
-	}	
-}
-
 function pullLANIPList(obj){
 	var element = document.getElementById('ClientList_Block_PC');
 	var isMenuopen = element.offsetWidth > 0 || element.offsetHeight > 0;
@@ -798,7 +759,7 @@ function linkport(obj){
 									<li><#UserQoSRule_desc_one#></li>
 							</ul>
 					</div>
-					<div class="formfontdesc"><a style="text-decoration:underline;" href="https://www.asus.com/support/FAQ/1010951/" target="_blank">QoS FAQ</a></div>
+					<div class="formfontdesc"><a id="faq" href="" style="text-decoration:underline;" target="_blank">QoS FAQ</a></div>
 
 					</div>	
 					</td>

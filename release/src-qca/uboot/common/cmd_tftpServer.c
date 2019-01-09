@@ -49,6 +49,9 @@ int rc = 0;
 int MAC_FLAG = 0;
 int env_loc = 0;
 int ubi_damaged = 0;
+#if defined(RPAC66)
+int rescue_mode = 0;
+#endif
 
 static void _tftpd_open(void);
 static void TftpHandler(uchar * pkt, unsigned dest, unsigned src, unsigned len);
@@ -478,6 +481,9 @@ static int load_asus_firmware(cmd_tbl_t *cmdtp, int argc, char *argv[])
 {
 	if (check_trx(argc, argv) <= 0) {
 		printf(" \nHello!! Enter Recuse Mode: (Check error)\n\n");
+#if defined(RPAC66)
+		rescue_mode = 1;
+#endif
 		if (NetLoop(TFTPD) < 0)
 			return 1;
 	}
@@ -522,6 +528,13 @@ int do_tftpd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 #endif
 		setenv("autostart", "no");
 		/* Wait forever for an image */
+#if defined(RPAC66)
+		rescue_mode = 1;
+#ifdef CONFIG_AP152_AR8033
+		/* workaround for waiting ethernet up really */
+		udelay(1500000);
+#endif
+#endif
 		if (NetLoop(TFTPD) < 0)
 			return 1;
 	}
@@ -534,12 +547,29 @@ int do_tftpd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 		if (i >= press_times) {
 			while (DETECT_WPS()) {
+#if defined(RPAC66)
+				udelay(1000000);
+				i++;
+				if (i & 1)
+					leds_on();
+				else
+					leds_off();
+#else
 				udelay(90000);
 				i++;
 				if (i & 1)
+#if defined(MAPAC1750)
+					red_led_on();
+#else
 					power_led_on();
+#endif
 				else
+#if defined(MAPAC1750)
+					leds_off();
+#else
 					power_led_off();
+#endif
+#endif
 			}
 			leds_off();
 
@@ -1085,7 +1115,13 @@ static void SolveTRX(void)
 
 		printf("\n Erase kernel block !!\n From %x To %x (%d/h:%x)\n",
 			CFG_KERN_ADDR, e_end, count, count);
+#if defined(MXIC_EN4B_SUPPORT)
+		set_4byte(1);
+#endif
 		rc = ra_flash_erase_write(ptr, CFG_KERN_ADDR, count, 0);
+#if defined(MXIC_EN4B_SUPPORT)
+		set_4byte(0);
+#endif
 #if defined(DUAL_TRX)
 		if (rc)
 			printf("Write 1st firmware fail. (r = %d)\n");

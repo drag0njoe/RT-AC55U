@@ -31,7 +31,7 @@
 /*-----------------------------------------------------------------------
  * Model name, bootloader version
  */
-#define ASUS_BLVER			"1011"
+#define ASUS_BLVER			"1012"
 
 #ifndef __ASSEMBLY__
 /* board955x.c */

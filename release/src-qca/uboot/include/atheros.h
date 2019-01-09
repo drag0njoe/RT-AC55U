@@ -78,7 +78,7 @@
 #define is_s17()        0
 #endif
 
-#ifdef CONFIG_ATHR_8033_PHY
+#if defined(CONFIG_ATHR_8033_PHY)||defined(CONFIG_AP152_AR8033)
 #define is_ar8033() 1
 #else
 #define is_ar8033() 0

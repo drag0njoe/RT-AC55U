@@ -177,4 +177,8 @@ typedef u_int32_t uint32_t;
 # define UNUSED(x) x 
 #endif
 
+#ifdef SECURITY_NOTIFY
+#include <libptcsrv.h>
+#endif
+
 #endif /* DROPBEAR_INCLUDES_H_ */

@@ -250,8 +250,8 @@ function gen_list(){
 	}
 	else if(country == "NZ"){
 		protolist = new Array("1", "1", "1");
-		isplist = new Array("CHT", "Vodafone", "2degrees");
-		apnlist = new Array("internet", "www.vodafone.net.nz", "2degrees");
+		isplist = new Array("2degrees", "Spark", "Vodafone");
+		apnlist = new Array("internet", "internet", "internet");
 		daillist = new Array("*99#", "*99#", "*99#");
 		userlist = new Array("", "", "");
 		passlist = new Array("", "", "");
@@ -377,12 +377,12 @@ function gen_list(){
 		passlist = new Array("internet", "", "", "", "", "", "internet", "", "000000", "IT", "3G_TURBO", "", "", "freshtel", "");
 	}
 	else if(country == "UK"){
-		protolist = new Array("1", "1", "1", "1");
-		isplist = new Array("3", "O2", "Vodafone", "Orange");
-		apnlist = new Array("orangenet", "m-bb.o2.co.uk", "PPBUNDLE.INTERNET", "internetvpn");
-		daillist = new Array("*99#", "*99#", "*99#", "*99#");
-		userlist = new Array("", "o2bb", "web", "");
-		passlist = new Array("", "password", "web", "");
+		protolist = new Array("1", "1", "1", "1", "1");
+		isplist = new Array("3", "O2", "Orange", "Vodafone Monthly", "Vodafone PAYG");
+		apnlist = new Array("orangenet", "m-bb.o2.co.uk", "internetvpn", "wap.vodafone.co.uk", "pp.vodafone.co.uk");
+		daillist = new Array("*99#", "*99#", "*99#", "*99#", "*99#");
+		userlist = new Array("", "o2bb", "", "", "");
+		passlist = new Array("", "password", "", "", "");
 	}
 	else if(country == "US"){
 		protolist = new Array("1", "1", "1", "1", "1", "2", "1", "2");

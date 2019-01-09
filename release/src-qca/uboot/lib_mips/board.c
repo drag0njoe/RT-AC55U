@@ -295,7 +295,18 @@ void board_init_f(ulong bootflag)
 #endif
 
 #ifdef ASUS_PRODUCT
-	led_init();	// turn_on_led. If stage1 have turn on all led, this function causes small blinking.
+	led_init();	// turn_on_led. If stage1 have turn on all led, this function causes small blinking
+#if defined(RPAC66)
+	int i = 0;	
+	for (i=0;i<3;i++)
+	 {
+	  leds_on();
+	  udelay(100000);
+	  leds_off();
+	  udelay(100000);
+	 }
+	 leds_on();
+#endif
 	gpio_init();
 #endif
 	/*
@@ -618,7 +629,13 @@ static void handle_boottype_2(void)
 		ranand_locate_stage2(s2);
 		sprintf(addr_str, "0x%X", s2->good->code);
 #else
+#if defined(MXIC_EN4B_SUPPORT)
+		set_4byte(1);
+#endif
 		ra_flash_erase_write((uchar*)load_address, CFG_KERN_ADDR, NetBootFileXferSize, 0);
+#if defined(MXIC_EN4B_SUPPORT)
+		set_4byte(0);
+#endif
 #endif
 	}
 
@@ -756,9 +773,9 @@ static void handle_boottype_5(void)
 static void handle_boottype_7(void)
 {
 	int my_tmp, argc= 3;
-	char *argv[4];
 	cmd_tbl_t c, *cmdtp = &c;
 	char tftp_load_addr[] = "0x81000000XXX";
+	char *argv[4] = { "loadb", tftp_load_addr, NULL, NULL };
 	unsigned int addr = CFG_LOAD_ADDR;
 
 	sprintf(tftp_load_addr, "0x%x", addr);
@@ -1062,12 +1079,15 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	}
 #endif
 
+
 #ifndef CONFIG_ATH_NAND_BR
 	/* configure available FLASH banks */
 	size = flash_init();
 	display_flash_config (size);
 #endif
-
+#if defined(RPAC66)
+	  leds_off();
+#endif
 	bd = gd->bd;
 	bd->bi_flashstart = CFG_FLASH_BASE;
 	bd->bi_flashsize = size;
@@ -1088,9 +1108,13 @@ void board_init_r (gd_t *id, ulong dest_addr)
 #endif
 
 #if defined(ASUS_PRODUCT)
+#if defined(MAPAC1750)
+	blue_led_on();
+#else
 	disable_all_leds();	/* Inhibit ALL LED, except PWR LED. */
 	leds_off();
 	power_led_on();
+#endif
 #endif
 
 #if defined(ASUS_PRODUCT)
@@ -1157,6 +1181,7 @@ void board_init_r (gd_t *id, ulong dest_addr)
 #if defined(CONFIG_NET_MULTI)
 	puts ("Net:   ");
 #endif
+
 	eth_initialize(gd->bd);
 #endif
 
@@ -1172,7 +1197,11 @@ void board_init_r (gd_t *id, ulong dest_addr)
 
 #if defined(ASUS_PRODUCT)
 	/* Boot Loader Menu */
-
+#if defined(RPAC66)
+	  leds_on();
+#elif defined(MAPAC1750)
+	leds_off();
+#endif
 	//LANWANPartition();	/* FIXME */
 	BootType = OperationSelect();
 	for (p = &boot_menu[0]; p->func; ++p ) {

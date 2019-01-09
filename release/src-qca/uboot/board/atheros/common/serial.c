@@ -20,7 +20,7 @@
 #include <config.h>
 #include <atheros.h>
 
-#if (defined(PLN12) || defined(PLAC56) || defined(PLAC66U))
+#if (defined(PLN12) || defined(PLAC56) || defined(PLAC66U) || defined(RPAC66) || defined(MAPAC1750))
 // temp
 #undef ASUS_PRODUCT
 #endif
@@ -153,6 +153,10 @@ int serial_init(void)
 #endif
 
 	val = ath_reg_rd(GPIO_OUT_ADDRESS) | 0xaffff6;
+#if defined(RPAC66)
+	/* disable the pin number (9) of red led of 2.4G in GPIO_OUT_ADDRESS */
+	val &= ~(1<<9);
+#endif
 	ath_reg_wr(GPIO_OUT_ADDRESS, val);
 
 	val = ath_reg_rd(GPIO_SPARE_ADDRESS);

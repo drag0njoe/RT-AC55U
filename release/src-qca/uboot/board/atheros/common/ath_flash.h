@@ -43,11 +43,21 @@
 } while (0)
 
 
+#if defined(MXIC_EN4B_SUPPORT)
+#define ath_spi_send_addr(__a) do {			\
+	if (en4b)					\
+	ath_spi_bit_banger(((__a & 0xff000000) >> 24));	\
+	ath_spi_bit_banger(((__a & 0x00ff0000) >> 16));	\
+	ath_spi_bit_banger(((__a & 0x0000ff00) >> 8));	\
+	ath_spi_bit_banger(__a & 0x000000ff);		\
+} while (0)
+#else
 #define ath_spi_send_addr(__a) do {			\
 	ath_spi_bit_banger(((__a & 0xff0000) >> 16));	\
 	ath_spi_bit_banger(((__a & 0x00ff00) >> 8));	\
 	ath_spi_bit_banger(__a & 0x0000ff);		\
 } while (0)
+#endif
 
 #define ath_spi_delay_8()	ath_spi_bit_banger(0)
 #define ath_spi_done()		ath_reg_wr_nf(ATH_SPI_FS, 0)

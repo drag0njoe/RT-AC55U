@@ -45,15 +45,24 @@ endif
 #	LDFLAGS += -L$(TOP)/libusb/libusb/.libs -lusb
 #	LDFLAGS += -L$(TOP)/libusb-0.1.12/.libs -lusb
 	LDFLAGS += -L$(TOP)/shared -lshared
-	LDFLAGS += -L$(TOP)/nvram${BCMEX} -lnvram
+	LDFLAGS += -L$(TOP)/nvram${BCMEX}$(EX7) -lnvram
 #endif
 
+ifeq ($(HND_ROUTER),y)
+LDFLAGS += -L$(TOP)/wlcsm -lwlcsm
+endif
+
 ifeq ($(RTCONFIG_BCMARM),y)
+CFLAGS += -I$(SRCBASE)/shared/bcmwifi/include -DTYPEDEF_FLOAT_T
 LDFLAGS += -lgcc_s
 endif
 
 ifeq ($(RTCONFIG_QTN),y)
 LDFLAGS += -L$(TOP)/libqcsapi_client -lqcsapi_client
+endif
+
+ifeq ($(RTCONFIG_AMAS),y)
+LDFLAGS += -L$(TOP)/json-c/.libs -ljson-c
 endif
 
 CFLAGS += -Wall -I.

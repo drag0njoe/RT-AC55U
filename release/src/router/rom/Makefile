@@ -7,30 +7,49 @@ SJPG = $(wildcard dlna/icon_sm.$(LCMODELNAME).jpg)
 LPNG = $(wildcard dlna/icon_lrg.$(LCMODELNAME).png)
 SPNG = $(wildcard dlna/icon_sm.$(LCMODELNAME).png)
 ifeq ($(RTCONFIG_BCMARM),y)
+ifeq ($(RTCONFIG_NEW_APP_ARM),y)
 	pkg_type=arm
-	DM_VERSION=3.1.0.93
-	HTTP_VERSION=3.1.0.86
-else ifeq ($(RTCONFIG_QCA),y)
+	DM_VERSION=9.1.0.101
+	HTTP_VERSION=9.1.0.97
+	OPENSSL_VERSION=9.1.0.2j.v001
+else
+	pkg_type=arm
+	DM_VERSION=3.1.0.101
+	HTTP_VERSION=3.1.0.97
+	OPENSSL_VERSION=1.0.2j.v001
+endif
+else ifeq ($(or $(RTCONFIG_QCA),$(RTCONFIG_REALTEK),$(RTCONFIG_LANTIQ)),y)
 	pkg_type=mipsbig
-	DM_VERSION=3.1.0.90
-	HTTP_VERSION=3.1.0.83
+	DM_VERSION=3.1.0.101
+	HTTP_VERSION=3.1.0.97
+	OPENSSL_VERSION=1.0.2j.v001
+else ifeq ($(RTCONFIG_NEW_APP_ARM),y)
+	pkg_type=arm
+	DM_VERSION=9.1.0.101
+	HTTP_VERSION=9.1.0.97
+	OPENSSL_VERSION=9.1.0.2j.v001
 else
 	pkg_type=mipsel
-	DM_VERSION=3.1.0.78
-	HTTP_VERSION=3.1.0.71
+	DM_VERSION=3.1.0.101
+	HTTP_VERSION=3.1.0.97
+	OPENSSL_VERSION=1.0.2j.v001
 endif
 
-PKG_LIST := readline wxbase expat openssl zlib libevent ncurses libxml2 pcre spawn-fcgi
+PKG_LIST := readline wxbase expat zlib libevent ncurses libxml2 pcre spawn-fcgi asuslibcurl
 
 ifeq ($(RTCONFIG_BCMARM),y)
-PKG_LIST += libcurl libsigc++ libpar2
+PKG_LIST += libsigc++ libpar2
 else ifeq ($(RTCONFIG_QCA),y)
 # libuclibc++, libcurl, libsigc++, and libpar2 are not required
 else
-PKG_LIST += libuclibc++ libcurl libsigc++ libpar2
+PKG_LIST += libuclibc++ libsigc++ libpar2
 endif
 
 ifeq ($(RTCONFIG_APP_PREINSTALLED),y)
+endif
+ifeq ($(RTCONFIG_NEW_APP_ARM),y)
+PKG_LIST += ncurses-base libiconv
+
 endif
 
 all:
@@ -49,18 +68,42 @@ ifeq ($(RTAC88U),y)
 	install -m 0644 smb.conf $(INSTALLDIR)/rom/smb.conf
 endif
 ifeq ($(RTCONFIG_APP_PREINSTALLED),y)
+ifeq ($(RTCONFIG_NEW_APP_ARM),y)
+	install -m 0644 optware.asus.$(pkg_type)_new $(INSTALLDIR)/rom/optware.asus
+else
 	install -m 0644 optware.asus.$(pkg_type) $(INSTALLDIR)/rom/optware.asus
+endif
 ifeq ($(RTCONFIG_BCMARM),y)
+ifeq ($(RTCONFIG_NEW_APP_ARM),y)
+	install -m 0644 optware.armeabi-ng $(INSTALLDIR)/rom 
+else
 	install -m 0644 optware.mbwe-bluering $(INSTALLDIR)/rom
+endif
+else ifeq ($(RTCONFIG_NEW_APP_ARM),y)
+	install -m 0644 optware.armeabi-ng $(INSTALLDIR)/rom
 else
 	install -m 0644 optware.oleg $(INSTALLDIR)/rom
 endif
+ifeq ($(RTCONFIG_NEW_APP_ARM),y)
+	install -m 0644 packages_new/asus_base_apps_new_$(pkg_type).tgz $(INSTALLDIR)/rom # Don't need if installing from Internet.	
+	-install -m 0644 $(foreach pkg,$(PKG_LIST),packages_new/$(pkg)_*_$(pkg_type).ipk) $(INSTALLDIR)/rom
+	-install -m 0644 packages_new/downloadmaster_$(DM_VERSION)_$(pkg_type).ipk $(INSTALLDIR)/rom
+	-install -m 0644 packages_new/asusopenssl_$(OPENSSL_VERSION)_$(pkg_type).ipk $(INSTALLDIR)/rom
+	-install -m 0644 packages_new/bzip2_*_$(pkg_type).ipk $(INSTALLDIR)/rom
+else
 	install -m 0644 packages/asus_base_apps_$(pkg_type).tgz $(INSTALLDIR)/rom # Don't need if installing from Internet.
 	-install -m 0644 $(foreach pkg,$(PKG_LIST),packages/$(pkg)_*_$(pkg_type).ipk) $(INSTALLDIR)/rom
 	-install -m 0644 packages/downloadmaster_$(DM_VERSION)_$(pkg_type).ipk $(INSTALLDIR)/rom
+	-install -m 0644 packages/asusopenssl_$(OPENSSL_VERSION)_$(pkg_type).ipk $(INSTALLDIR)/rom
 	-install -m 0644 packages/bzip2_*_$(pkg_type).ipk $(INSTALLDIR)/rom
+endif
+	
 ifneq ($(HTTP_VERSION),)
+ifeq ($(RTCONFIG_NEW_APP_ARM),y)
+	-install -m 0644 packages_new/asuslighttpd_$(HTTP_VERSION)_$(pkg_type).ipk $(INSTALLDIR)/rom
+else
 	-install -m 0644 packages/asuslighttpd_$(HTTP_VERSION)_$(pkg_type).ipk $(INSTALLDIR)/rom
+endif
 endif
 endif
 
@@ -70,6 +113,13 @@ ifneq ($(APP),none)
 	install -m 0755 apps_scripts/asusrouter $(INSTALLDIR)/rom/.asusrouter
 	install -m 0755 apps_scripts/app_*.sh $(INSTALLDIR)/usr/sbin
 	install -m 0755 apps_scripts/check_spectrum.sh $(INSTALLDIR)/usr/sbin
+ifeq ($(RTCONFIG_USB_SWAP),y)
+	install -m 0755 apps_scripts/usb_swap.sh $(INSTALLDIR)/usr/sbin
+endif
+else
+ifeq ($(RTCONFIG_DISK_MONITOR),y)
+	install -m 0755 apps_scripts/app_fsck*.sh $(INSTALLDIR)/usr/sbin
+endif
 endif
 ifeq ($(RTCONFIG_USB_MODEM),y)
 	install -m 0644 spn_*.dat $(INSTALLDIR)/rom
@@ -77,9 +127,7 @@ ifeq ($(RTCONFIG_USB_MODEM),y)
 	install -m 0755 apps_scripts/modem_*.sh $(INSTALLDIR)/usr/sbin
 	install -m 0755 apps_scripts/3ginfo.sh $(INSTALLDIR)/usr/sbin
 ifeq ($(RTCONFIG_INTERNAL_GOBI),y)
-ifeq ($(RT4GAC55U),y)
 	install -m 0755 apps_scripts/gobi_update.sh $(INSTALLDIR)/usr/sbin
-endif
 endif
 endif
 endif
@@ -91,9 +139,9 @@ endif
 ifeq ($(RTCONFIG_AUTOLIVEUPDATE_ZIP),y)
 	cp -f webs_scripts/zip_webs_upgrade.sh $(INSTALLDIR)/usr/sbin/webs_upgrade.sh
 	cp -f webs_scripts/zip_webs_update.sh $(INSTALLDIR)/usr/sbin/webs_update.sh
-ifeq ($(RTCONFIG_BWDPI),y)
-	cp -f webs_scripts/sig_upgrade.sh $(INSTALLDIR)/usr/sbin/sig_upgrade.sh
-	cp -f webs_scripts/sig_update.sh $(INSTALLDIR)/usr/sbin/sig_update.sh
+ifeq ($(or $(RTCONFIG_BWDPI),$(RTCONFIG_BWDPI_DEP)),y)
+	cp -f webs_scripts/sig2nd_upgrade.sh $(INSTALLDIR)/usr/sbin/sig_upgrade.sh
+	cp -f webs_scripts/sig2nd_update.sh $(INSTALLDIR)/usr/sbin/sig_update.sh
 endif
 ifeq ($(RTCONFIG_HTTPS),y)
 	cp -f webs_scripts/public.pem $(INSTALLDIR)/usr/sbin/public.pem
@@ -101,6 +149,10 @@ endif
 else
 ifeq ($(RTCONFIG_HTTPS),y)
 	cp -f webs_scripts/ssl_webs_upgrade.sh $(INSTALLDIR)/usr/sbin/webs_upgrade.sh
+ifeq ($(RTCONFIG_CFGSYNC),y)
+	cp -f webs_scripts/ssl_webs_download.sh $(INSTALLDIR)/usr/sbin/webs_download.sh
+	cp -f webs_scripts/ssl_webs_note.sh $(INSTALLDIR)/usr/sbin/webs_note.sh
+endif
 else
 	cp -f webs_scripts/nozip_webs_upgrade.sh $(INSTALLDIR)/usr/sbin/webs_upgrade.sh
 endif
@@ -109,14 +161,16 @@ ifeq ($(RTCONFIG_FBWIFI),y)
 else
 	cp -f webs_scripts/ssl_webs_update.sh $(INSTALLDIR)/usr/sbin/webs_update.sh
 endif
-
 ifeq ($(RTAC68A),y)
 	cp -f webs_scripts/force_webs_update.sh $(INSTALLDIR)/usr/sbin/webs_update.sh
 endif
+ifeq ($(AC2900),y)
+	cp -f webs_scripts/verizon_webs_update.sh $(INSTALLDIR)/usr/sbin/webs_update.sh
+endif
 
-ifeq ($(RTCONFIG_BWDPI),y)
-	cp -f webs_scripts/sig_upgrade.sh $(INSTALLDIR)/usr/sbin/sig_upgrade.sh
-	cp -f webs_scripts/sig_update.sh $(INSTALLDIR)/usr/sbin/sig_update.sh
+ifeq ($(or $(RTCONFIG_BWDPI),$(RTCONFIG_BWDPI_DEP)),y)
+	cp -f webs_scripts/sig2nd_upgrade.sh $(INSTALLDIR)/usr/sbin/sig_upgrade.sh
+	cp -f webs_scripts/sig2nd_update.sh $(INSTALLDIR)/usr/sbin/sig_update.sh
 endif
 ifeq ($(RTCONFIG_HTTPS),y)
 	cp -f webs_scripts/public.pem $(INSTALLDIR)/usr/sbin/public.pem
@@ -150,6 +204,13 @@ ifeq ($(RTAC68U),y)
 	cp -rf cfe/mtd-write $(INSTALLDIR)/rom/cfe/
 endif
 
+ifeq ($(RTAC3200),y)
+	mkdir -p $(INSTALLDIR)/rom/cfe
+	cp -rf cfe/cfe_rt-ac3200_1.0.1.7_128k.bin $(INSTALLDIR)/rom/cfe
+	cp -rf cfe/cfe_rt-ac3200_2.0.0.4_128k.bin $(INSTALLDIR)/rom/cfe
+	cp -rf cfe/mtd-write $(INSTALLDIR)/rom/cfe/
+endif
+
 ifeq ($(RTCONFIG_MEDIA_SERVER),y)
 	mkdir -p $(INSTALLDIR)/rom/dlna
 ifeq ($(BUILD_NAME), RT-AC68U)
@@ -173,3 +234,11 @@ endif
 
 	install -m 0755 webs_scripts/GoogleDNS_Update.sh $(INSTALLDIR)/usr/sbin
 
+ifeq ($(RTCONFIG_LETSENCRYPT),y)
+	install -m 0644 rom/etc/ssl/certs/DST_Root_CA_X3.pem $(INSTALLDIR)/rom/etc/ssl/certs/letsencrypt.pem
+endif
+
+ifeq ($(HND_ROUTER),y)
+	mkdir -p $(INSTALL_DIR)/rom/rom/usr/share/zoneinfo
+	cp -rf zoneinfo/* $(INSTALL_DIR)/rom/rom/usr/share/zoneinfo/
+endif

@@ -146,13 +146,13 @@ function isBrowser(testBrowser){
 
 function getUrlVars(){
 	var vars = [], hash;
-  var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
-  for(var i = 0; i < hashes.length; i++){
-  	hash = hashes[i].split('=');
-    vars.push(hash[0]);
-    vars[hash[0]] = hash[1];
-  }
-  return vars;
+  	var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+  	for(var i = 0; i < hashes.length; i++){
+  		hash = hashes[i].split('=');
+    	vars.push(hash[0]);
+    	vars[hash[0]] = encodeSafeString(hash[1]);
+  	}
+  	return vars;
 }
 
 function parseXml(xml) {
@@ -242,6 +242,15 @@ function myencodeURI(iurl){
 	return myurl;
 }
 
+function encodeSafeString(input){
+    input = input.replace(/&/g, '&amp;');
+    input = input.replace(/<script/g, '<script&lt;');
+	input = input.replace(/script>/g, 'script&gt;');
+	input = input.replace(/%0A/g, '');
+	input = input.replace(/%0D/g, '');
+    return input;
+}
+
 function isIE(){
 	var is_ie = false;
 	
@@ -285,8 +294,8 @@ function getInternetExplorerVersion(){
 }
 
 function getPageSize() {
-	var body_width = $(window).width();
-	var body_height = $(window).height();
+	var body_width = $(document).width();
+	var body_height = $(document).height() - 37;
 	return [ body_width, body_height ];
 }
 
@@ -300,7 +309,7 @@ function getLockToken(content){
 	}
 	else { // Internet Explorer
 		xmlDoc=new ActiveXObject("Microsoft.XMLDOM");
-    xmlDoc.async="false";
+        xmlDoc.async="false";
 		xmlDoc.loadXML(content);
 					
 		if(!xmlDoc.documentElement){
@@ -374,6 +383,7 @@ function DrawImage(ImgD,FitWidth,FitHeight,FitWidthOnly){
      }
 }
 
+ 
 /*
 function getXmlHttpRequest() {
     		

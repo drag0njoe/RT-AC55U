@@ -48,6 +48,13 @@ typedef struct eeprom_set_hdr_s {
 	uint32_t ih_write_ver;	/* Number of writes             */
 	uint32_t ih_dcrc;	/* Image Data CRC Checksum      */
 } eeprom_set_hdr_t;
+
+/* ath_nand.c */
+#define ATH_NAND_BLK_DONT_KNOW	0x0
+#define ATH_NAND_BLK_GOOD	0x1
+#define ATH_NAND_BLK_BAD	0x2
+#define ATH_NAND_BLK_ERASED	0x3
+extern void ath_nand_set_blk_state_wrap(struct mtd_info *mtd, loff_t b, unsigned state);
 #else
 #define MAX_EEPROM_SET_LENGTH		65536
 #endif
@@ -930,6 +937,60 @@ static int move_leb_to_ubi(void)
 }
 #endif
 
+#if defined(UBI_SUPPORT)
+/**
+ * Erase all software marked bad-block
+ * @return:
+ *    >=0:	success
+ *     <0:	any error
+ */
+int remove_software_marked_bad_block(void)
+{
+	int ret, ok = 0, fail = 0;
+	ulong off;
+	nand_info_t *nand;
+	u_char buf[4], buf1[4];
+
+	nand = &nand_info[nand_curr_device];
+	printf("Scanning software marked bad-block ...\n");
+	for (off = 0; off < nand->size; off += nand->erasesize) {
+		off &= ~nand->erasesize_mask;	/* aligned to block address */
+		if ((ret = nand_read_raw(nand, buf, off, 0, sizeof(buf))) != 0) {
+			printf("read oob from %lx fail. (ret %d)\n", off, ret);
+			fail++;
+			continue;
+		}
+		if ((ret = nand_read_raw(nand, buf1, off + nand->writesize, 0, sizeof(buf1))) != 0) {
+			printf("read oob from %lx fail. (ret %d)\n", off + nand->writesize, ret);
+			fail++;
+			continue;
+		}
+		if (buf[0] == 0xFF && buf1[0] == 0xFF) {
+			continue;
+		} else if ((buf[0] != SW_BAD_BLOCK_INDICATION && buf[0] != 0xFF) ||
+			   (buf1[0] != SW_BAD_BLOCK_INDICATION && buf1[0] != 0xFF))
+		{
+			printf("skip unknown bad-block indication byte at %08lx. (mark %02x,%02x)\n", off, buf[0], buf1[0]);
+			continue;
+		}
+		ath_nand_set_blk_state_wrap(nand, off, ATH_NAND_BLK_GOOD);	/* cheat mtd->erase */
+		if ((ret = nand_erase(nand, off, nand->erasesize)) != 0) {
+			printf("erase offset %lx fail. (ret %d)\n", off, ret);
+			fail++;
+			continue;
+		}
+
+		printf("Erase software marked bad-block at %08lx successful.\n", off);
+		ok++;
+	}
+
+	if (ok > 0)
+		return ok;
+	else if (fail > 0)
+		return -1;
+	return 0;
+}
+#endif
 
 /**
  * Initialize Flash layout.
@@ -960,7 +1021,11 @@ int ra_flash_init_layout(void)
 
 	if (r) {
 		printf("Mount UBI device fail. (r = %d)\n", r);
-		return -ENOENT;
+		if (remove_software_marked_bad_block() >= 0)
+			r = do_ubi(NULL, 0, ARRAY_SIZE(ubi_part), ubi_part);
+
+		if (r)
+			return -ENOENT;
 	}
 	do_ubi(NULL, 0, ARRAY_SIZE(ubi_info_layout), ubi_info_layout);
 

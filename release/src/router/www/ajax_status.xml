@@ -52,7 +52,7 @@
   <sim>sim_imsi=<% nvram_get("usb_modem_act_imsi"); %></sim>
   <sim>g3err_pin=<% nvram_get("g3err_pin"); %></sim>
   <sim>pin_remaining_count=<% nvram_get("usb_modem_act_auth_pin"); %></sim>
-  <sim>sim_spn=<% nvram_get("modem_spn"); %></sim>
+  <sim>modem_act_provider=<% nvram_get("usb_modem_act_provider"); %></sim>
   <sim>rx_bytes=<% nvram_get("modem_bytes_rx"); %></sim>
   <sim>tx_bytes=<% nvram_get("modem_bytes_tx"); %></sim>
   <sim>modem_sim_order=<% nvram_get("modem_sim_order"); %></sim>
@@ -62,4 +62,7 @@
   <wan>rssi_2g=<% wl_rssi_2g(); %></wan>
   <wan>rssi_5g=<% wl_rssi_5g(); %></wan>
   <wan>rssi_5g_2=<% wl_rssi_5g_2(); %></wan>
+  <wan>link_internet=<% nvram_get("link_internet"); %></wan>
+  <diag>diag_dblog_enable=<% nvram_get("dblog_enable"); %></diag>
+  <diag>diag_dblog_remaining=<% nvram_get("dblog_remaining"); %></diag>
 </devicemap>

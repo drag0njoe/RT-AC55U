@@ -83,7 +83,7 @@ int devnum=-1, busnum=-1;
 int ret;
 
 char DetachStorageOnly=0, HuaweiMode=0, SierraMode=0, SonyMode=0, GCTMode=0, KobilMode=0;
-char SequansMode=0, MobileActionMode=0, CiscoMode=0, QisdaMode=0;
+char SequansMode=0, MobileActionMode=0, CiscoMode=0, QisdaMode=0, HuaweiNewMode=0;
 char verbose=0, show_progress=1, ResetUSB=0, CheckSuccess=0, config_read=0;
 char NeedResponse=0, NoDriverLoading=0, InquireDevice=1, sysmode=0;
 
@@ -121,6 +121,7 @@ static struct option long_options[] = {
 	{"device-num",			required_argument, 0, 'g'},
 	{"detach-only",			no_argument, 0, 'd'},
 	{"huawei-mode",			no_argument, 0, 'H'},
+	{"huawei-new-mode",		no_argument, 0, 'J'},
 	{"sierra-mode",			no_argument, 0, 'S'},
 	{"sony-mode",			no_argument, 0, 'O'},
 	{"qisda-mode",			no_argument, 0, 'B'},
@@ -156,6 +157,7 @@ void readConfigFile(const char *configFilename)
 	ParseParamHex(configFilename, DefaultProduct);
 	ParseParamBool(configFilename, DetachStorageOnly);
 	ParseParamBool(configFilename, HuaweiMode);
+	ParseParamBool(configFilename, HuaweiNewMode);
 	ParseParamBool(configFilename, SierraMode);
 	ParseParamBool(configFilename, SonyMode);
 	ParseParamBool(configFilename, QisdaMode);
@@ -214,6 +216,7 @@ void printConfig()
 	fprintf (output,"TargetProductList=\"%s\"\n",		TargetProductList);
 	fprintf (output,"\nDetachStorageOnly=%i\n",	(int)DetachStorageOnly);
 	fprintf (output,"HuaweiMode=%i\n",			(int)HuaweiMode);
+	fprintf (output,"HuaweiNewMode=%i\n",			(int)HuaweiNewMode);
 	fprintf (output,"SierraMode=%i\n",			(int)SierraMode);
 	fprintf (output,"SonyMode=%i\n",			(int)SonyMode);
 	fprintf (output,"QisdaMode=%i\n",		(int)QisdaMode);
@@ -271,7 +274,7 @@ int readArguments(int argc, char **argv)
 
 	while (1)
 	{
-		c = getopt_long (argc, argv, "heWQDndHSOBGTNALRItv:p:V:P:C:m:M:2:3:w:r:c:i:u:a:s:f:b:g:",
+		c = getopt_long (argc, argv, "heWQDndHJSOBGTNALRItv:p:V:P:C:m:M:2:3:w:r:c:i:u:a:s:f:b:g:",
 						long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -295,6 +298,7 @@ int readArguments(int argc, char **argv)
 			case 'r': ResponseEndpoint = strtol(optarg, NULL, 16); break;
 			case 'd': DetachStorageOnly = 1; break;
 			case 'H': HuaweiMode = 1; break;
+			case 'J': HuaweiNewMode = 1; break;
 			case 'S': SierraMode = 1; break;
 			case 'O': SonyMode = 1; break;
 			case 'B': QisdaMode = 1; break;
@@ -490,7 +494,7 @@ int main(int argc, char **argv)
 	SHOW_PROGRESS(output,"Using first interface: 0x%02x\n", Interface);
 
 	/* Check or get endpoints */
-	if (strlen(MessageContent) || InquireDevice || CiscoMode) {
+	if (strlen(MessageContent) || InquireDevice || CiscoMode || HuaweiNewMode) {
 		if (!MessageEndpoint)
 			MessageEndpoint = find_first_bulk_output_endpoint(dev);
 		if (!MessageEndpoint) {
@@ -534,10 +538,15 @@ int main(int argc, char **argv)
 
 	/* Some scenarios are exclusive, so check for unwanted combinations */
  	specialMode = DetachStorageOnly + HuaweiMode + SierraMode + SonyMode + QisdaMode + KobilMode
-		+ SequansMode + MobileActionMode + CiscoMode;
+		+ SequansMode + MobileActionMode + CiscoMode + HuaweiNewMode;
 	if ( specialMode > 1 ) {
 		SHOW_PROGRESS(output,"Invalid mode combination. Check your configuration. Aborting.\n\n");
 		exit(1);
+	}
+
+	if (strlen(MessageContent) && specialMode ) {
+		MessageContent[0] = '\0';
+		SHOW_PROGRESS(output,"Warning: ignoring MessageContent. Can't combine with special mode\n");
 	}
 
 	if ( !specialMode && !strlen(MessageContent) && AltSetting == -1 && Configuration == 0 )
@@ -596,14 +605,16 @@ int main(int argc, char **argv)
 		CheckSuccess = 0; /* separate and implied success control */
 		sonySuccess = switchSonyMode();
 	}
-
-	if (strlen(MessageContent) && MessageEndpoint) {
-		if (specialMode == 0) {
-			if (InquireDevice != 2)
-				detachDriver();
-			switchSendMessage();
-		} else
-			SHOW_PROGRESS(output,"Warning: ignoring MessageContent. Can't combine with special mode\n");
+	if (HuaweiNewMode) {
+		SHOW_PROGRESS(output,"Using standard Huawei switching message\n");
+		detachDriver();
+		strcpy(MessageContent,"55534243123456780000000000000011062000000101000100000000000000");
+		NeedResponse = 0;
+		switchSendMessage();
+	} else if (strlen(MessageContent) && MessageEndpoint) {
+		if (InquireDevice != 2)
+			detachDriver();
+		switchSendMessage();
 	}
 
 	if (Configuration > 0) {
@@ -1826,6 +1837,7 @@ void printHelp()
 	" -r, --response-endpoint NUM   read response from there (optional)\n"
 	" -d, --detach-only             detach the active driver, no further action\n"
 	" -H, --huawei-mode             apply a special procedure\n"
+	" -J, --huawei-new-mode         apply a special procedure\n"
 	" -S, --sierra-mode             apply a special procedure\n"
 	" -O, --sony-mode               apply a special procedure\n"
 	" -G, --gct-mode                apply a special procedure\n"

@@ -27,14 +27,14 @@ OBJS	= mkimage.o
 #
 # Use native tools and options
 #
-CPPFLAGS   = -idirafter ./include -DTEXT_BASE=$(TEXT_BASE) -DUSE_HOSTCC
+CPPFLAGS   = -idirafter ./include -DTEXT_BASE=$(TEXT_BASE) -DUSE_HOSTCC -DTRX_NEW
 CFLAGS     = $(HOST_CFLAGS) $(CPPFLAGS) -O
 AFLAGS	   = -D__ASSEMBLY__ $(CPPFLAGS)
 MAKEDEPEND = makedepend
 CC	   = gcc
 STRIP	   = strip
 
-all:	.depend $(BINS) 
+all:	.depend $(BINS) install
 
 mkimage:mkimage.o crc32.o
 	$(CC) $(CFLAGS) $(HOST_LDFLAGS) -o $@ $^
@@ -48,6 +48,9 @@ mkimage.o: mkimage.c
 
 .depend: Makefile $(OBJS:.o=.c)
 	$(CC) -M $(HOST_CFLAGS) $(CPPFLAGS) $(OBJS:.o=.c) > $@
+
+install:
+	cp $(BINS) ../	
 
 clean:
 	rm -f *.o mkimage

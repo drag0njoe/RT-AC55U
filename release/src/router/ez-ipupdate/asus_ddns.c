@@ -250,7 +250,7 @@ int TransferMacAddr(const char* mac, char* transfer_mac)
         return( i==12 && s==5 );
 }
 
-int asus_reg_domain (void)
+int asus_reg_domain (int regType)
 {
 	char buf[BUFFER_SIZE + 1];
 	char *p, *bp = buf;
@@ -262,7 +262,6 @@ int asus_reg_domain (void)
 	int retval = REGISTERES_OK;
 
 	buf[BUFFER_SIZE] = '\0';
-
 	if (do_connect((int *) &client_sockfd, server, port) != 0) {
 		PRINT ("error connecting to %s:%s\n", server, port);
 		show_message("error connecting to %s:%s\n", server, port);
@@ -274,13 +273,29 @@ int asus_reg_domain (void)
 	char *ddns_transfer;
 	char old_mac[13];
 	memset(old_mac, 0, 13);
-	if(TransferMacAddr(nvram_safe_get("ddns_transfer"), old_mac)) {
-		snprintf(buf, BUFFER_SIZE, "GET /ddns/register.jsp?hostname=%s&myip=%s&oldmac=%s HTTP/1.0\015\012", 
-			 host, address, old_mac);
+	if(!regType){
+		snprintf(buf, BUFFER_SIZE, "GET /ddns/register.jsp?hostname=%s&action=unregister",
+			 host);
 	}
-	else {
-		snprintf(buf, BUFFER_SIZE, "GET /ddns/register.jsp?hostname=%s&myip=%s HTTP/1.0\015\012", host, address);
+	else{
+		if(TransferMacAddr(nvram_safe_get("ddns_transfer"), old_mac)) {
+			snprintf(buf, BUFFER_SIZE, "GET /ddns/register.jsp?hostname=%s&myip=%s&oldmac=%s",
+				 host, address, old_mac);
+		}
+		else {
+			snprintf(buf, BUFFER_SIZE, "GET /ddns/register.jsp?hostname=%s&myip=%s", host, address);
+		}
 	}
+	output(buf);
+#ifdef RTCONFIG_LETSENCRYPT
+	char acme_txt[64] = {0};
+	if(nvram_match("le_enable", "1") && f_read_string("/tmp/acme.txt", acme_txt, sizeof(acme_txt)) > 0) {
+		PRINT("acme: TXT: %s", acme_txt);
+		snprintf(buf, BUFFER_SIZE, "&acme_challenge=1&txtdata=%s", acme_txt);
+		output(buf);
+	}
+#endif
+	snprintf(buf, BUFFER_SIZE, " HTTP/1.0\015\012");
 	output(buf);
 	snprintf(buf, BUFFER_SIZE, "Authorization: Basic %s\015\012", auth);
 	output(buf);
@@ -315,11 +330,17 @@ int asus_reg_domain (void)
 		if (p == NULL)	{
 			p = "";
 		}
-		snprintf (ret_buf, sizeof (ret_buf), "%s,%d", "register", ret);
+		snprintf (ret_buf, sizeof (ret_buf), "%s,%d", (regType == 1)? "register": "unregister", ret);
 	}
 
-	nvram_set ("ddns_return_code", ret_buf);
-	nvram_set ("ddns_return_code_chk", ret_buf);
+	if(regType == 0)
+		nvram_set ("asusddns_reg_result", ret_buf);
+	else{
+		nvram_set ("ddns_return_code", ret_buf);
+		nvram_set ("ddns_return_code_chk", ret_buf);
+	}
+
+
 	switch (ret) {
 	case -1:
 		PRINT ("strange server response, are you connecting to the right server?\n");
@@ -429,12 +450,22 @@ int asus_update_entry(void)
         char old_mac[13];
         memset(old_mac, 0, 13);
         if(TransferMacAddr(nvram_safe_get("ddns_transfer"), old_mac)) {
-                snprintf(buf, BUFFER_SIZE, "GET /ddns/update.jsp?hostname=%s&myip=%s&oldmac=%s HTTP/1.0\015\012",
+                snprintf(buf, BUFFER_SIZE, "GET /ddns/update.jsp?hostname=%s&myip=%s&oldmac=%s",
                          host, address, old_mac);
         }
         else {
-                snprintf(buf, BUFFER_SIZE, "GET /ddns/update.jsp?hostname=%s&myip=%s HTTP/1.0\015\012", host, address);
+                snprintf(buf, BUFFER_SIZE, "GET /ddns/update.jsp?hostname=%s&myip=%s", host, address);
         }
+	output(buf);
+#ifdef RTCONFIG_LETSENCRYPT
+	char acme_txt[64] = {0};
+	if(nvram_match("le_enable", "1") && f_read_string("/tmp/acme.txt", acme_txt, sizeof(acme_txt)) > 0) {
+		PRINT("acme: TXT: %s", acme_txt);
+		snprintf(buf, BUFFER_SIZE, "&acme_challenge=1&txtdata=%s", acme_txt);
+		output(buf);
+	}
+#endif
+	snprintf(buf, BUFFER_SIZE, " HTTP/1.0\015\012");
 	output(buf);
 	snprintf(buf, BUFFER_SIZE, "Authorization: Basic %s\015\012", auth);
 	output(buf);
@@ -615,6 +646,44 @@ wl_wscPincheck(char *pin_string)
 	return 1;    // Invalid
 }
 
+static char *get_macaddr(void)
+{
+	int model = get_model();
+	char *mac = get_lan_hwaddr();
+
+	/* Some model use LAN MAC address to register ASUSDDNS account.
+	 * To keep consistency, don't use get_wan_hwaddr() to rewrite below code.
+	 */
+	switch (model) {
+	case MODEL_RTN56U:
+		mac = nvram_get("et1macaddr");
+		break;
+#if defined(RTCONFIG_QCA)
+	/* Below models has 380 firmwares which use et0macaddr to register ddns name.
+	 * To compatible with 380 firmware, we mustn't use get_lan_hwaddr() on those
+	 * QCA-based models due to it returns value of et1macaddr.
+	 * For newer QCA-based models, which already use get_lan_hwaddr(), e.g.,
+	 * RP-AC51, RT-ACRH17 (RT-AC82U), Lyra series, and VRZ-AC1300, don't append
+	 * model name to below list and just use return value of get_lan_hwaddr().
+	 */
+	case MODEL_RTAC55U:
+	case MODEL_RTAC55UHP:
+	case MODEL_RT4GAC55U:
+	case MODEL_PLN12:
+	case MODEL_PLAC56:
+	case MODEL_PLAC66U:
+	case MODEL_RPAC66:
+	case MODEL_RTAC58U:
+	case MODEL_BRTAC828:
+		mac = nvram_get("et0macaddr");
+		break;
+#endif
+	}
+
+
+	return mac;
+}
+
 
 // Generate password according to MAC address
 int asus_private(void)
@@ -633,23 +702,9 @@ int asus_private(void)
 	memset (user, 0, sizeof (user));
 	memset (bin_pwd, 0, sizeof (bin_pwd));
 
-	/* Some model use LAN MAC address to register ASUSDDNS account.
-	 * To keep consistency, don't use get_wan_hwaddr() to rewrite below code.
-	 */
-#ifdef RTCONFIG_RGMII_BRCM5301X
-	p = nvram_get ("et1macaddr");
-#else
-	if (get_model() == MODEL_RTN56U)
-		p = nvram_get ("et1macaddr");
-	else
-	p = nvram_get ("et0macaddr");
-#endif
-
-#ifdef RTCONFIG_GMAC3
-	if(nvram_match("gmac3_enable", "1"))
-		p = nvram_safe_get ("et2macaddr");
-#endif
+	p = get_macaddr();
 	if (p == NULL)	{
+		show_message("ERROR: %s() can not take MAC address from et0macaddr\n");
 		PRINT ("ERROR: %s() can not take MAC address from et0macaddr\n");
 		return -1;
 	}
@@ -667,6 +722,7 @@ int asus_private(void)
 	strtok (hwaddr_str, ":");
 	for (i = 0; i < 6; ++i)	{
 		if (p == NULL)	{
+			show_message("ERROR: %s() can not convert MAC address\n", __FUNCTION__);
 			PRINT ("ERROR: %s() can not convert MAC address\n", __FUNCTION__);
 			return -1;
 		}
@@ -677,14 +733,17 @@ int asus_private(void)
 
 	p = nvram_get ("secret_code");
 	if (p == NULL)	{
+		show_message("ERROR: secret_code not found.\n");
 		PRINT ("ERROR: secret_code not found.\n");
 		return -1;
 	}
 	strncpy (key, p, sizeof (key));
 	c = wl_wscPincheck (key);
 	//DBG ("secret code (%s) is %s\n", key, (c == 0)?"valid":"INVALID");
-	if (c)
+	if (c){
+		show_message("WARNING: invalid secret code (%s)?\n", key);
 		PRINT ("WARNING: invalid secret code (%s)?\n", key);
+	}
 
 	DUMP (key);
 
@@ -695,12 +754,16 @@ int asus_private(void)
 		int sock;
 
 		if (interface == NULL)	{
+			show_message("ERROR: %s() invalid address and interface\n", __FUNCTION__);
 			PRINT ("ERROR: %s() invalid address and interface\n", __FUNCTION__);
 			return -1;
 		}
 
 		sock = socket(AF_INET, SOCK_STREAM, 0);
+		show_message("%s() interface =%s\n", __FUNCTION__, interface);
+		PRINT("%s() interface =%s\n", __FUNCTION__, interface);
 		if (get_if_addr(sock, interface, &sin) != 0) {
+			show_message("ERROR: %s() get IP address of interface fail\n", __FUNCTION__);
 			PRINT ("ERROR: %s() get IP address of interface fail\n", __FUNCTION__);
 			return -1;
 		}

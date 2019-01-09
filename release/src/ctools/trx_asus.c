@@ -152,6 +152,7 @@ int create_asus(const char *optarg)
 	uint32_t v1, v2, v3, v4;
 #ifdef TRX_NEW
 	char *sn, *en;
+	char tmp[10];
 	uint8_t rand;
 	uint32_t offset;
 #endif
@@ -206,7 +207,7 @@ int create_asus(const char *optarg)
 	else
 		asus_tail.key = 0xff - asus_tail.key + rand;
 
-	sscanf(en, "%d-%*s", &v1);
+	sscanf(en, "%d-%s", &v1, tmp);
 	asus_tail.en = (uint16_t)v1;
 #endif
 

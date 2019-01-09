@@ -146,6 +146,11 @@ void svr_auth_pubkey() {
 		dropbear_log(LOG_NOTICE,
 				"Pubkey auth succeeded for '%s' with key %s from %s",
 				ses.authstate.pw_name, fp, svr_ses.addrstring);
+#ifdef SECURITY_NOTIFY
+		SEND_PTCSRV_EVENT(PROTECTION_SERVICE_SSH,
+				RPT_SUCCESS, svr_ses.hoststring,
+				"From dropbear , LOGIN SUCCESS(authpubkey)");
+#endif
 		send_msg_userauth_success();
 	} else {
 		dropbear_log(LOG_WARNING,
