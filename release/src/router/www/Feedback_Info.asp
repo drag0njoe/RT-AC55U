@@ -20,7 +20,19 @@
 <script type="text/javascript" src="/help.js"></script>
 <script>
 var fb_state = "<% nvram_get("fb_state"); %>";
-	
+
+var firmver = '<% nvram_get("firmver"); %>';
+var buildno = '<% nvram_get("buildno"); %>';
+//var rcno = '<% nvram_get("rcno"); %>';
+var extendno = '<% nvram_get("extendno"); %>';
+var FWString = '';
+
+FWString = firmver+"."+buildno;
+//if(rcno.length > 0)
+//	FWString += "rc"+rcno;
+FWString += "_"+extendno;
+
+
 function initial(){
 	show_menu();
 	check_info();
@@ -60,7 +72,7 @@ function get_debug_log_info(){
 	desc += "----------------------------------------------------------------------\n";
 
 	desc += "Model: "+based_modelid+"\n";
-	desc += "Firmware Version: <% nvram_get("firmver"); %>.<% nvram_get("buildno"); %>_<% nvram_get("extendno"); %>\n";
+	desc += "Firmware Version: "+FWString+"\n";
 	desc += "Inner Version: <% nvram_get("innerver"); %>\n";
 	desc += "DSL Firmware Version: <% nvram_get("dsllog_fwver"); %>\n";
 	desc += "DSL Driver Version:  <% nvram_get("dsllog_drvver"); %>\n\n";
@@ -165,7 +177,7 @@ function reset_diag_state(){
 </div>
 
 <div id="fb_fail_textarea" style="display:none;">
-	<textarea name="fb_fail_content" cols="70" rows="10" style="width:99%; font-family:'Courier New', Courier, mono; font-size:13px;background:#475A5F;color:#FFFFFF;" readonly><% nvram_dump("fb_fail_content", ""); %></textarea>
+	<textarea name="fb_fail_content" cols="70" rows="10" style="width:90%;margin-left:25px;font-family:'Courier New', Courier, mono; font-size:13px;background:#475A5F;color:#FFFFFF;" readonly><% nvram_dump("fb_fail_content", ""); %></textarea>
 	<br>
 </div>
 
@@ -187,12 +199,12 @@ function reset_diag_state(){
 <div id="fb_send_debug_log" style="display:none;">
 	<br>
 	<br>
-	<div class="feedback_info_0">Diagnostic DSL debug log capture completed.</div>
+	<div class="feedback_info_0">The debug log of diagnostic DSL captured.</div>
 	<br>
 	<br>
 	<div class="feedback_info_1">Please send us an email directly ( <a id="Email_subject" href="" target="_top" style="color:#FFCC00;">xdsl_feedback@asus.com</a> ). Simply copy from following text area and paste as mail content. <br><div onClick="reset_diag_state();" style="text-decoration: underline; font-family:Lucida Console; cursor:pointer;">Click here to download the debug log and add as mail attachment.</div></div>
 	<br>
-	<textarea name="fb_send_debug_log_content" cols="70" rows="15" style="width:99%; font-family:'Courier New', Courier, mono; font-size:13px;background:#475A5F;color:#FFFFFF;" readonly></textarea>
+	<textarea name="fb_send_debug_log_content" cols="70" rows="15" style="width:90%; margin-left:25px; font-family:'Courier New', Courier, mono; font-size:13px;background:#475A5F;color:#FFFFFF;" readonly></textarea>
 	<br>	
 </div>
 

@@ -12,7 +12,7 @@ var g_invite_token = "";
 
 $("document").ready(function() {
 	//document.oncontextmenu = function() {return false;};
-	
+				
 	var vars = getUrlVars();
 	var loc_lan = String(window.navigator.userLanguage || window.navigator.language).toLowerCase();		
 	var lan = ( g_storage.get('lan') == undefined ) ? loc_lan : g_storage.get('lan');
@@ -71,8 +71,12 @@ $("document").ready(function() {
 		var ln = "Hsinchu";
 		var orag = "ASUS";
 		var ounit = "RD";
-		var cn = window.location.hostname;
 		
+		var cn = g_storage.get('request_host_url');
+		if(cn.indexOf("://")!=-1){
+            cn = cn.substr(cn.indexOf("://")+3); 
+        }
+                    
 		var msg = m.getString("msg_gen_crt_confirm");
 		msg = msg.replace("%s", cn);
 		
@@ -101,12 +105,12 @@ $("document").ready(function() {
 	$("button#btn_import_crt").click(function(){
 		
 		$("#import_crt").show();
-		$("#import_crt").css("left", tempX );
+		$("#import_crt").css("left", g_mouse_x );
 				
-		if( tempY + $("#filelink").height() > $("body").height() )
+		if( g_mouse_y + $("#filelink").height() > $("body").height() )
 			$("#import_crt").css("top", $("body").height() - $("#filelink").height() );
 		else
-			$("#import_crt").css("top", tempY );
+			$("#import_crt").css("top", g_mouse_y );
 	});
 	
 	$("button#btn_export_crt").click(function(){
@@ -506,8 +510,7 @@ $("document").ready(function() {
       			
       			var invite_url = "";
 				if(g_storage.get('ddns_host_name')==""){
-					var b = window.location.href.indexOf("/",window.location.protocol.length+2);
-					invite_url = window.location.href.slice(0,b) + "/" + invite_token;
+					invite_url = g_storage.get('request_host_url') + "/" + invite_token;					
 				}
 				else{
 					invite_url = "https://" + g_storage.get('ddns_host_name');
@@ -527,7 +530,7 @@ $("document").ready(function() {
 				account_info += "<br><br>" + smartaccess_desc;
 				account_info += "<br><br>" + securitycode_desc;
 							
-				$("#account_info").html(account_info);
+				$("#account_info").html(encodeSafeString(account_info));
 				
 				var mail_content = "mailto:?subject=Welcome to my AiCloud";
       			mail_content += "&body=";
@@ -620,7 +623,7 @@ function query_partition_share_folder(account_type, account, path, folder, table
 	  		
 	  		html_data += "</table>";
 	  		
-	  		$("#"+ table_name).html(html_data);
+	  		$("#"+ table_name).html(encodeSafeString(html_data));
 	  		
 	  		$(".folder_table_tr").mouseenter(function(){
 	  			$(this).css("background-color", "#cccccc");
@@ -697,9 +700,8 @@ function query_account_list(){
 	  			html_data += "</tr>";
 	  		}
 	  		
-	  		
 	  		$("#table_account_list tbody").empty();
-	  		$("#table_account_list tbody").append(html_data);
+	  		$("#table_account_list tbody").append(encodeSafeString(html_data));
 	  		
 	  		$(".edit_account").click(function(){
 	  			var item_info = $(this).closest("tr");
@@ -743,15 +745,8 @@ function query_account_list(){
 
 function query_account_invite_list(){
 	
-	var b = window.location.href.indexOf("/",window.location.protocol.length+2);
-	var window_url = window.location.href.slice(0,b);
-	
-	var window_url = "";
-	if(g_storage.get('ddns_host_name')==""){
-		var b = window.location.href.indexOf("/",window.location.protocol.length+2);
-		window_url = window.location.href.slice(0,b);
-	}
-	else{
+	var window_url = g_storage.get('request_host_url');
+	if(g_storage.get('ddns_host_name')!=""){
 		window_url = "https://" + g_storage.get('ddns_host_name');
 	}
 							
@@ -803,7 +798,7 @@ function query_account_invite_list(){
 	  		
 	  		
 	  		$("#table_account_invite_list tbody").empty();
-	  		$("#table_account_invite_list tbody").append(html_data);
+	  		$("#table_account_invite_list tbody").append(encodeSafeString(html_data));
 	  		
 	  		$(".edit_account_invite").click(function(){
 	  			var item_info = $(this).closest("tr");
@@ -873,6 +868,7 @@ function onFacebookLogin( token, uid ){
 }
 
 function facebook_login(){
+    /*
 	var app_id = "697618710295679";
 	window._onFacebookLogin = this.onFacebookLogin;
 	var b = window.location.href.indexOf("/",window.location.protocol.length+2);
@@ -883,6 +879,7 @@ function facebook_login(){
 	var url = "http://www.facebook.com/dialog/oauth/?scope=publish_stream%2Cuser_photos%2Coffline_access&client_id=" + app_id + "&display=popup&redirect_uri=" + encodeURIComponent(auth_url) + redirect_url;
 	
 	window.open(url,"mywindow","menubar=1,resizable=0,width=630,height=250, top=100, left=300");
+	*/
 }
 
 function onGoogleLogin( token, uid ){
@@ -901,6 +898,7 @@ function onGoogleLogin( token, uid ){
 }
 
 function google_login(){
+    /*
 	var app_id = "103584452676-oo7gkbh8dg7nm07lao9a0i3r9jh6jfra.apps.googleusercontent.com";
 	var b = window.location.href.indexOf("/",window.location.protocol.length+2);
 	var callback_function = "onGoogleLogin";
@@ -916,6 +914,7 @@ function google_login(){
 			  "&state=/callback=" + callback_function + "+ps5host=" + redirect_url;
 		
 	window.open(url,"mywindow","menubar=1,resizable=0,width=630,height=250, top=100, left=300");
+	*/
 }
 
 function getLatestVersion(){
@@ -952,10 +951,14 @@ function getLatestVersion(){
 
 function refreshShareLinkList(){
 	var webdav_mode = g_storage.get('webdav_mode');
-	var ddns_host_name = g_storage.get('ddns_host_name');    
-	var cur_host_name = window.location.host;
+	var ddns_host_name = g_storage.get('ddns_host_name');   
+	
 	var hostName = "";
-				
+	var cur_host_name = g_storage.get('request_host_url');
+	if(cur_host_name.indexOf("://")!=-1){
+        cur_host_name = cur_host_name.substr(cur_host_name.indexOf("://")+3); 
+    }
+                    			
 	if(!isPrivateIP(cur_host_name))
 		hostName = cur_host_name;
 	else			
@@ -1057,18 +1060,18 @@ function refreshShareLinkList(){
 			table_html += "<span>刪除選取連結</span>";
 			table_html += "</div>";
 			
-			$(table_html).appendTo($("#tab2"));
+			$("#tab2").html(encodeSafeString(table_html));
 			
 			$("div.delcheck_block").css("visibility", "hidden");	
 			
 			$("a.share_link_url").click(function(){
 				$("#filelink").css("display","block");
-				$("#filelink").css("left", tempX );
+				$("#filelink").css("left", g_mouse_x );
 				
-				if( tempY + $("#filelink").height() > $("body").height() )
+				if( g_mouse_y + $("#filelink").height() > $("body").height() )
 					$("#filelink").css("top", $("body").height() - $("#filelink").height() );
 				else
-					$("#filelink").css("top", tempY );
+					$("#filelink").css("top", g_mouse_y );
 				
 				$("#resourcefile").attr("value",$(this).attr("uhref"));
 				$("#resourcefile").focus();
@@ -1100,7 +1103,7 @@ function refreshShareLinkList(){
 				
 				if(del_count<=0){
 										
-					var newTop = tempY+10;
+					var newTop = g_mouse_y+10;
 					var newLeft = 0;
 					$("div.delcheck_block").animate({
 						top: newTop,
@@ -1115,8 +1118,8 @@ function refreshShareLinkList(){
 					
 					$("div.delcheck_block").css("visibility", "");
 					
-					var newTop = tempY+10;
-					var newLeft = tempX+10;
+					var newTop = g_mouse_y+10;
+					var newLeft = g_mouse_x+10;
 					$("div.delcheck_block").animate({
 						top: newTop,
 						left: newLeft
@@ -1150,8 +1153,8 @@ function refreshShareLinkList(){
 					$('input:checkbox.check_del').prop('checked', true);					
 					$("div.delcheck_block").css("visibility", "");
 					
-					var newTop = tempY+10;
-					var newLeft = tempX+10;
+					var newTop = g_mouse_y+10;
+					var newLeft = g_mouse_x+10;
 					$("div.delcheck_block").animate({
 						top: newTop,
 						left: newLeft
@@ -1160,7 +1163,7 @@ function refreshShareLinkList(){
 				else{
 					$('input:checkbox.check_del').prop('checked', false);
 					
-					var newTop = tempY+10;
+					var newTop = g_mouse_y+10;
 					var newLeft = 0;
 					$("div.delcheck_block").animate({
 						top: newTop,
@@ -1394,32 +1397,27 @@ function onDoImportCrt(){
 	});
 }
 
-// Detect if the browser is IE or not.
-// If it is not IE, we assume that the browser is NS.
-var IE = document.all?true:false
-
-// If NS -- that is, !IE -- then set up for mouse capture
-if (!IE) document.captureEvents(Event.MOUSEMOVE)
+// Temporary variables to hold mouse x-y pos.s
+var g_mouse_x = 0
+var g_mouse_y = 0
 
 // Set-up to use getMouseXY function onMouseMove
 document.onmousemove = getMouseXY;
 
-// Temporary variables to hold mouse x-y pos.s
-var tempX = 0
-var tempY = 0
-
-// Main function to retrieve mouse x-y pos.s
-
+//- function to retrieve mouse x-y pos.s
 function getMouseXY(e) {
-	if (IE) { // grab the x-y pos.s if browser is IE
-    	tempX = event.clientX + document.body.scrollLeft
-    	tempY = event.clientY + document.body.scrollTop
-  	} else {  // grab the x-y pos.s if browser is NS
-    	tempX = e.pageX
-    	tempY = e.pageY
-  	}  
-  	// catch possible negative values in NS4
-  	if (tempX < 0){tempX = 0}
-  	if (tempY < 0){tempY = 0}  
+	if (document.all) { 
+		// grab the x-y pos.s if browser is IE
+    	g_mouse_x = event.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+    	g_mouse_y = event.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+	} 
+	else {  
+		// grab the x-y pos.s if browser is NS
+    	g_mouse_x = e.pageX;
+		g_mouse_y = e.pageY;
+  	}
+	
+  	if (g_mouse_x < 0){g_mouse_x = 0}
+  	if (g_mouse_y < 0){g_mouse_y = 0}
   	return true
 }

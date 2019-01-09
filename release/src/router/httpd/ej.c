@@ -35,7 +35,8 @@
 
 #include <httpd.h>
 #include <bcmnvram.h>
-#include <rtconfig.h>
+#include <shutils.h>
+#include <shared.h>
 
 static char * get_arg(char *args, char **next);
 static void call(char *func, FILE *stream);
@@ -179,7 +180,7 @@ translate_lang (char *s, char *e, FILE *f, kw_t *pkw)
 				}
 				if(pDest != pattern1)
 				{
-					strcpy(pDest, pSrc);
+					strlcpy(pDest, pSrc, sizeof(pattern1));
 					desc = pattern1;
 				}
 			}
@@ -212,7 +213,7 @@ do_ej(char *path, FILE *stream)
 	char pat_buf[PATTERN_LENGTH];
 	char *pattern = pat_buf, *asp = NULL, *asp_end = NULL, *key = NULL, *key_end = NULL;
 	char *start_pat, *end_pat, *lang;
-	FILE *fp;
+	FILE *fp = NULL;
 	int conn_break = 0;
 	size_t ret, read_len, len;
 	int no_translate = 1;
@@ -223,25 +224,13 @@ do_ej(char *path, FILE *stream)
 
 #ifdef TRANSLATE_ON_FLY
 	// Load dictionary file
-
-	// If the router is restored to default, using browser's language setting to display ALL pages
-	if (is_firsttime () && Accept_Language[0] != '\0' && nvram_match("ui_Setting", "0")) {
-		lang = Accept_Language;
-		nvram_set("ui_Setting" , "1");
-	} else {
-		lang = nvram_safe_get("preferred_lang");
-		if (!check_lang_support(lang)) {
-			nvram_set("preferred_lang", "EN");
-			lang = "EN";
-		}
+	lang = nvram_safe_get("preferred_lang");
+	if(!check_lang_support(lang)){
+		lang = nvram_default_get("preferred_lang");
+		nvram_set("preferred_lang", lang);
 	}
 
-	if(!strncmp(nvram_safe_get("territory_code"), "JP", 2) && strcmp(nvram_safe_get("ATEMODE"), "1")){
-		nvram_set("preferred_lang", "JP");
-		lang = "JP";	
-	}
-
-	if (load_dictionary (lang, &kw))	{
+	if (load_dictionary (lang, &kw)){
 		no_translate = 0;
 	}
 #endif  //defined TRANSLATE_ON_FLY
@@ -378,11 +367,8 @@ do_ej(char *path, FILE *stream)
 	}		/* while (conn_break == 0) */
 
 	fflush (stream);
-	fclose(fp);
 
-	if (pattern != pat_buf) {
-		free (pattern);
-	}
+	fclose(fp);
 }
 #endif  // defined TRANSLATE_ON_FLY
 

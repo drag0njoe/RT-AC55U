@@ -7,7 +7,7 @@
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
 <title><#Web_Title#> - Home Security</title>
-<link rel="stylesheet" type="text/css" href="index_style.css"> 
+<link rel="stylesheet" type="text/css" href="index_style.css">
 <link rel="stylesheet" type="text/css" href="form_style.css">
 <script type="text/javascript" src="/state.js"></script>
 <script type="text/javascript" src="/popup.js"></script>
@@ -16,6 +16,7 @@
 <script type="text/javascript" src="/js/jquery.js"></script>
 <script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
 <script type="text/javascript" src="/form.js"></script>
+<script type="text/javascript" src="/js/httpApi.js"></script>
 <style>
 .weakness{
 	width:650px;
@@ -40,7 +41,6 @@
 	background-color:#BEBEBE;
 	color:#000;border-collapse:separate !important;
 	border-radius:10px;
-
 }
 
 .weakness_status th{
@@ -68,7 +68,14 @@
 	background-color:#FF7575;
 }
 .status_no a{
-	text-decoration:underline;}
+	text-decoration:underline;
+}
+.status_no_risk{
+	background-color:#EF9800;
+}
+.status_no_risk a{
+	text-decoration:underline;
+}
 .status_yes{
 	background-color:#1CFE16;
 }
@@ -84,10 +91,55 @@
 	padding:15px 10px 20px 10px;
 	display: none;
 }
+
+.AiProtection_01{
+	text-align:center;
+	background: url('/images/New_ui/AiProtection_01.png');
+	width:34px;
+	height:34px;
+	margin: 0 5px;
+}
+
+.AiProtection_02{
+	text-align:center;
+	background: url('/images/New_ui/AiProtection_02.png');
+	width:34px;
+	height:34px;
+	margin: 0 5px;
+}
+
+.AiProtection_03{
+	text-align:center;
+	background: url('/images/New_ui/AiProtection_03.png');
+	width:34px;
+	height:34px;
+	margin: 0 5px;
+}
+
+.line_1{
+	background:url('/images/line.png') no-repeat;
+	width:6px;
+	height:102px;
+	background-size:4px 185px;
+}
+
+.shadow{
+	position: absolute;
+	width: 140px;
+	height: 110px;
+	background-color: #6B7071;
+	opacity: 0.6;
+	z-index: 5;
+	margin-top: -23px;
+	display: none;
+	border-radius: 10px;
+}
+.shadow_m{
+	margin-top: -9px;
+}
 </style>
 <script>
 if(usb_support) addNewScript("/disk_functions.js");
-
 window.onresize = function() {
 	if(document.getElementById("weakness_div").style.display == "block") {
 		cal_panel_block("weakness_div", 0.25);
@@ -98,39 +150,157 @@ window.onresize = function() {
 	if(document.getElementById("agreement_panel").style.display == "block") {
 		cal_panel_block("agreement_panel", 0.25);
 	}
-} 
+}
 <% get_AiDisk_status(); %>
 var AM_to_cifs = get_share_management_status("cifs");  // Account Management for Network-Neighborhood
 var AM_to_ftp = get_share_management_status("ftp");  // Account Management for FTP
 
-var button_flag = 0;
 var ctf_disable = '<% nvram_get("ctf_disable"); %>';
 var ctf_fa_mode = '<% nvram_get("ctf_fa_mode"); %>';
+var danger_count = 0;
+var risk_count = 0;
+var safe_count = 0;
 
 function initial(){
 	show_menu();
-	document.getElementById("_AiProtection_HomeSecurity").innerHTML = '<table><tbody><tr><td><div class="_AiProtection_HomeSecurity"></div></td><td><div style="width:120px;"><#AiProtection_title#></div></td></tr></tbody></table>';
-	document.getElementById("_AiProtection_HomeSecurity").className = "menu_clicked";
+	//	http://www.asus.com/support/FAQ/1008719/
+	httpApi.faqURL("faq", "1008719", "https://www.asus.com", "/support/FAQ/");
+
+	if(lyra_hide_support){
+		$("#scenario_tr").css({"visibility":"hidden"});
+		$("#scenario_img").attr({"height":"0"});
+		$("#security_scan_tr").hide();
+		$(".AiProtection_02").hide();
+		$(".AiProtection_03").hide();
+		$(".line_1").hide();
+		if(!uiSupport("dpi_vp")){
+			$("#twoWayIPS_padding").hide();
+			$("#twoWayIPS_field").hide();
+		}
+	}
+
+	if(document.form.wrs_protect_enable.value == '1'){
+		shadeHandle('1');
+	}
+	else{
+		shadeHandle('0');
+	}
+
+	getEventTime();
+	getEventData();
+	check_weakness();
+
+	$("#all_security_btn").hide();
+}
+
+function getEventTime(){
+	var time = document.form.wrs_mals_t.value*1000;
+	var mals_date = transferTimeFormat(time);
+	$("#mali_time").html(mals_date);
+	time = document.form.wrs_vp_t.value*1000;
+	var vp_date = transferTimeFormat(time);
+	$("#vp_time").html(vp_date);
+	time = document.form.wrs_cc_t.value*1000;
+	var cc_date = transferTimeFormat(time);
+	$("#infected_time").html(cc_date);
+}
+
+function transferTimeFormat(time){
+	if(time == 0){
+		return "";
+	}
+
+	var t = new Date();
+	t.setTime(time);
+	var year = t.getFullYear();
+	var month = t.getMonth() + 1;
+	if(month < 10){
+		month  = "0" + month;
+	}
+
+	var date = t.getDate();
+	if(date < 10){
+		date = "0" + date;
+	}
+
+	var hour = t.getHours();
+	if(hour < 10){
+		hour = "0" + hour;
+	}
+
+	var minute = t.getMinutes();
+	if(minute < 10){
+		minute = "0" + minute;
+	}
+
+	var date_format = "Since " + year + "/" + month + "/" + date + " " + hour + ":" + minute;
+	return date_format;
+}
+
+function getEventData(type, date, event){
+	$.ajax({
+		url: '/getAiProtectionEvent.asp?type=' + type + '&date=' + date + '&event=' + event,
+		dataType: 'script',
+		error: function(xhr) {
+			setTimeout("getEventData(type, date, event);", 1000);
+		},
+		success: function(response){
+			var mali_count = event_count.mals_n;
+			var vp_count = event_count.vp_n;
+			var infected_count = event_count.cc_n;
+			$("#mali_count").html(mali_count);
+			$("#vp_count").html(vp_count);
+			$("#infected_count").html(infected_count);
+		}
+	});
 }
 
 function applyRule(){
+	//first time will update to time value
+	var t = new Date();
+	var timestamp = t.getTime();
+	if(document.form.wrs_mals_t.value == "0"){
+		document.form.wrs_mals_t.value = timestamp.toString().substring(0, 10);
+	}
+	if(document.form.wrs_vp_t.value == "0"){
+		document.form.wrs_vp_t.value = timestamp.toString().substring(0, 10);
+	}
+
+	if(document.form.wrs_cc_t.value == "0"){
+		document.form.wrs_cc_t.value = timestamp.toString().substring(0, 10);
+	}
+
 	if(ctf_disable == 0 && ctf_fa_mode == 2){
 		if(!confirm(Untranslated.ctf_fa_hint)){
 			return false;
-		}	
+		}
 		else{
 			document.form.action_script.value = "reboot";
 			document.form.action_wait.value = "<% nvram_get("reboot_time"); %>";
-		}	
+		}
 	}
 
-	showLoading();	
-	document.form.submit();
+	if(reset_wan_to_fo(document.form, document.form.wrs_protect_enable.value)) {
+		showLoading();
+		document.form.submit();
+	}
+	else {
+		curState = 0;
+		document.form.wrs_protect_enable.value = "0";
+		$('#radio_protection_enable').find('.iphone_switch').animate({backgroundPosition: -37}, "slow");
+		shadeHandle('0');
+		if($('#agreement_panel').css('display') == "block") {
+			refreshpage();
+		}
+	}
+}
+
+function showWeaknessTable(){
+	cal_panel_block("weakness_div", 0.25);
+	$('#weakness_div').fadeIn();
 }
 
 function check_weakness(){
-	cal_panel_block("weakness_div", 0.25);
-	$('#weakness_div').fadeIn();
 	check_login_name_password();
 	check_wireless_password();
 	check_wireless_encryption();
@@ -144,6 +314,22 @@ function check_weakness(){
 	check_ftp_anonymous();
 	check_samba_anonymous();
 	check_TM_feature();
+	if(danger_count != 0){
+		$("#router_scan_count").html(danger_count);
+		$("#router_scan_count").css("backgroundColor", "#ED1C24");
+		$("#router_scan_state").html("Danger");
+	}
+	else if(risk_count != 0){
+		$("#router_scan_count").html(risk_count);
+		$("#router_scan_count").css("backgroundColor", "#EF9800");
+		$("#router_scan_state").html("Risk");
+	}
+	else if(safe_count != 0){
+		$("#all_security_btn").hide();
+		$("#router_scan_count").html(safe_count);
+		$("#router_scan_count").css("backgroundColor", "#24A628");
+		$("#router_scan_state").html("Safe");
+	}
 }
 
 function close_weakness_status(){
@@ -154,10 +340,10 @@ function enable_whole_security(){
     if(!confirm("<#AiProtection_Vulnerability_confirm#>")){
 		return false;
 	}
-	
+
 	var action_script_temp = "";
-	var wan0_upnp_enable = document.form.wan0_upnp_enable.value; 
-	var wan1_upnp_enable = document.form.wan1_upnp_enable.value; 
+	var wan0_upnp_enable = document.form.wan0_upnp_enable.value;
+	var wan1_upnp_enable = document.form.wan1_upnp_enable.value;
 	var wan_access_enable = document.form.misc_http_x.value;
 	var wan_ping_enable = document.form.misc_ping_x.value;
 	var port_trigger_enable = document.form.autofw_enable_x.value;
@@ -175,7 +361,7 @@ function enable_whole_security(){
 	var restart_wireless = 0;
 	var restart_samba = 0;
 	var restart_ftp = 0;
-	
+
 	if(wps_enable == 1){
 		document.form.wps_enable.value = 0;
 		document.form.wps_sta_pin.value = "";
@@ -184,27 +370,27 @@ function enable_whole_security(){
 		restart_wireless = 1;
 		document.form.action_wait.value = "20";
 	}
-	
-	if(wan0_upnp_enable == 1 || wan1_upnp_enable == 1){		
+
+	if(wan0_upnp_enable == 1 || wan1_upnp_enable == 1){
 		document.form.wan0_upnp_enable.value = 0;
 		document.form.wan1_upnp_enable.value = 0;
 		document.form.wan0_upnp_enable.disabled = false;
 		document.form.wan1_upnp_enable.disabled = false;
 		restart_wan = 1;
 	}
-	
+
 	if(wan_access_enable ==1){
 		document.form.misc_http_x.value = 0;
 		document.form.misc_http_x.disabled = false;;
 		restart_time = 1;
 	}
-	
+
 	if(wan_ping_enable == 1){
 		document.form.misc_ping_x.value = 0;
 		document.form.misc_ping_x.disabled = false;
 		restart_firewall = 1;
 	}
-	
+
 	if(document.form.dmz_ip.value != ""){
 		document.form.dmz_ip.value = "";
 		document.form.dmz_ip.disabled = false;
@@ -216,21 +402,21 @@ function enable_whole_security(){
 		document.form.autofw_enable_x.disabled = false;
 		restart_firewall = 1;
 	}
-	
+
 	if(port_forwarding_enable == 1){
 		document.form.vts_enable_x.value = 0;
 		document.form.vts_enable_x.disabled = false;
 		restart_firewall = 1;
 	}
-	
-	if(ftp_account_mode == 1){	
+
+	if(ftp_account_mode == 1){
 		document.form.st_ftp_mode.value = 2;
 		document.form.st_ftp_force_mode.value = 2;
 		document.form.st_ftp_mode.disabled = false;
 		document.form.st_ftp_force_mode.disabled = false;
 		restart_ftp = 1
 	}
-	
+
 	if(samba_account_mode == 1){
 		document.form.st_samba_mode.value = 4;
 		document.form.st_samba_force_mode.value = 4;
@@ -239,12 +425,13 @@ function enable_whole_security(){
 		restart_samba = 1;
 	}
 
+	document.form.wrs_protect_enable.value = 1;
 	if(wrs_cc_enable == 0){
 		document.form.wrs_cc_enable.value = 1;
 		restart_firewall = 1;
 		restart_wrs = 1;
 	}
-	
+
 	if(wrs_vp_enable == 0){
 		document.form.wrs_vp_enable.value = 1;
 		restart_firewall = 1;
@@ -256,78 +443,79 @@ function enable_whole_security(){
 		restart_firewall = 1;
 		restart_wrs = 1;
 	}
-	
+
 	if(restart_wan == 1){
 		if(action_script_temp == "")
 			action_script_temp += "restart_wan_if";
-		else	
-			action_script_temp += ";restart_wan_if";	
+		else
+			action_script_temp += ";restart_wan_if";
 	}
-	
+
 	if(restart_time == 1){
 		if(action_script_temp == "")
 			action_script_temp =+ "restart_time";
-		else	
-			action_script_temp += ";restart_time";	
+		else
+			action_script_temp += ";restart_time";
 	}
-	
+
 	if(restart_wrs == 1){
 		if(action_script_temp == "")
 			action_script_temp += "restart_wrs";
-		else	
+		else
 			action_script_temp += ";restart_wrs";
 	}
-	
+
 	if(restart_firewall == 1){
 		if(action_script_temp == "")
 			action_script_temp += "restart_firewall";
-		else	
-			action_script_temp += ";restart_firewall";	
+		else
+			action_script_temp += ";restart_firewall";
 	}
-	
+
 	if(restart_wireless == 1){
 		if(action_script_temp == ""){
 			action_script_temp += "restart_wireless";
-		}	
+		}
 		else{
-			action_script_temp += ";restart_wireless";	
-		}	
+			action_script_temp += ";restart_wireless";
+		}
 	}
-	
+
 	if(restart_samba == 1 && restart_ftp == 1){
 		if(action_script_temp == "")
 			action_script_temp += "restart_ftpsamba";
-		else	
+		else
 			action_script_temp += ";restart_ftpsamba";
 	}
 	else{
 		if(restart_samba == 1){
 			if(action_script_temp == "")
 				action_script_temp += "restart_samba";
-			else	
+			else
 				action_script_temp += ";restart_samba";
 		}
-	
+
 		if(restart_ftp == 1){
 			if(action_script_temp == "")
 				action_script_temp += "restart_ftpd";
-			else	
+			else
 				action_script_temp += ";restart_ftpd";
-		}	
+		}
 	}
-	
+
 	document.form.action_script.value = action_script_temp;
 	document.form.submit();
 }
 function check_login_name_password(){
-
 	if(<% check_acorpw(); %> == 1){
+		danger_count++;
 		document.getElementById('login_password').innerHTML = "<a href='Advanced_System_Content.asp' target='_blank'><#checkbox_No#></a>";
-		document.getElementById('login_password').className = "status_no";	
+		document.getElementById('login_password').className = "status_no";
 		document.getElementById('login_password').onmouseover = function(){overHint(10);}
 		document.getElementById('login_password').onmouseout = function(){nd();}
 	}
 	else{
+		safe_count++;
 		document.getElementById('login_password').innerHTML = "<#checkbox_Yes#>";
 		document.getElementById('login_password').className = "status_yes";
 	}
@@ -343,11 +531,18 @@ function check_wireless_password(){
 	else if (nScore >= 80 && nScore <= 100) { sComplexity = "<#PASS_score4#>"; }
 
 	if(nScore >= 0 && nScore < 40){
-		document.getElementById('score').className = "status_no";			
+		danger_count++;
+		document.getElementById('score').className = "status_no";
 	}
-	else if(nScore >= 40 && nScore <= 100){
-		document.getElementById('score').className = "status_yes";		
-	}	
+	else if(nScore >= 0 && nScore < 40){
+		risk_count++;
+		document.getElementById('score').className = "status_no_risk";
+	}
+	else if(nScore >= 60 && nScore <= 100){
+		safe_count++;
+		document.getElementById('score').className = "status_yes";
+	}
+
 	oScore.innerHTML = sComplexity;
 	if(document.getElementById('score').className == "status_no")
 	{
@@ -357,13 +552,15 @@ function check_wireless_password(){
 }
 
 function check_wireless_encryption(){
-	if(<% check_wireless_encryption(); %> == "1"){		
+	if(<% check_wireless_encryption(); %> == "1"){
+		safe_count++;
 		document.getElementById('wireless_encryption').innerHTML = "<#PASS_score3#>";
 		document.getElementById('wireless_encryption').className = "status_yes";
 	}
 	else{
+		danger_count++;
 		document.getElementById('wireless_encryption').innerHTML = "<a href='Advanced_Wireless_Content.asp' target='_blank'><#PASS_score1#></a>";
-		document.getElementById('wireless_encryption').className = "status_no";	
+		document.getElementById('wireless_encryption').className = "status_no";
 		document.getElementById('wireless_encryption').onmouseover = function(){overHint(12);}
 		document.getElementById('wireless_encryption').onmouseout = function(){nd();}
 	}
@@ -372,12 +569,14 @@ function check_wireless_encryption(){
 function check_WPS(){
 	var wps_enable = document.form.wps_enable.value;
 	if(wps_enable == 0){
+		safe_count++;
 		document.getElementById('wps_status').innerHTML = "<#checkbox_Yes#>";
 		document.getElementById('wps_status').className = "status_yes";
 	}
 	else{
+		risk_count++;
 		document.getElementById('wps_status').innerHTML = "<a href='Advanced_WWPS_Content.asp' target='_blank'><#checkbox_No#></a>";
-		document.getElementById('wps_status').className = "status_no";	
+		document.getElementById('wps_status').className = "status_no_risk";
 		document.getElementById('wps_status').onmouseover = function(){overHint(25);}
 		document.getElementById('wps_status').onmouseout = function(){nd();}
 	}
@@ -386,31 +585,35 @@ function check_WPS(){
 function check_upnp(){
 	var wan0_upnp_enable = document.form.wan0_upnp_enable.value;
 	var wan1_upnp_enable = document.form.wan1_upnp_enable.value;
-	
+
 	if(dualwan_enabled){
 		if(wan0_upnp_enable == 0 && wan1_upnp_enable == 0){
+			safe_count++;
 			document.getElementById('upnp_service').innerHTML = "<#checkbox_Yes#>";
 			document.getElementById('upnp_service').className = "status_yes";
 		}
 		else{
+			risk_count++
 			document.getElementById('upnp_service').innerHTML = "<a href='Advanced_WAN_Content.asp' target='_blank'><#checkbox_No#></a>";
-			document.getElementById('upnp_service').className = "status_no";
+			document.getElementById('upnp_service').className = "status_no_risk";
 			document.getElementById('upnp_service').onmouseover = function(){overHint(13);}
 			document.getElementById('upnp_service').onmouseout = function(){nd();}
 		}
 	}
 	else{
 		if(wan0_upnp_enable == 0){
+			safe_count++;
 			document.getElementById('upnp_service').innerHTML = "<#checkbox_Yes#>";
 			document.getElementById('upnp_service').className = "status_yes";
 		}
 		else{
+			risk_count++;
 			document.getElementById('upnp_service').innerHTML = "<a href='Advanced_WAN_Content.asp' target='_blank'><#checkbox_No#></a>";
-			document.getElementById('upnp_service').className = "status_no";
+			document.getElementById('upnp_service').className = "status_no_risk";
 			document.getElementById('upnp_service').onmouseover = function(){overHint(13);}
 			document.getElementById('upnp_service').onmouseout = function(){nd();}
 		}
-	
+
 	}
 }
 
@@ -418,12 +621,14 @@ function check_wan_access(){
 	var wan_access_enable = document.form.misc_http_x.value;
 
 	if(wan_access_enable == 0){
+		safe_count++;
 		document.getElementById('access_from_wan').innerHTML = "<#checkbox_Yes#>";
 		document.getElementById('access_from_wan').className = "status_yes";
 	}
 	else{
+		risk_count++;
 		document.getElementById('access_from_wan').innerHTML = "<a href='Advanced_System_Content.asp' target='_blank'><#checkbox_No#></a>";
-		document.getElementById('access_from_wan').className = "status_no";
+		document.getElementById('access_from_wan').className = "status_no_risk";
 		document.getElementById('access_from_wan').onmouseover = function(){overHint(14);}
 		document.getElementById('access_from_wan').onmouseout = function(){nd();}
 	}
@@ -433,12 +638,14 @@ function check_ping_form_wan(){
 	var wan_ping_enable = document.form.misc_ping_x.value;
 
 	if(wan_ping_enable == 0){
+		safe_count++;
 		document.getElementById('ping_from_wan').innerHTML = "<#checkbox_Yes#>";
 		document.getElementById('ping_from_wan').className = "status_yes";
 	}
 	else{
+		risk_count++;
 		document.getElementById('ping_from_wan').innerHTML = "<a href='Advanced_BasicFirewall_Content.asp' target='_blank'><#checkbox_No#></a>";
-		document.getElementById('ping_from_wan').className = "status_no";
+		document.getElementById('ping_from_wan').className = "status_no_risk";
 		document.getElementById('ping_from_wan').onmouseover = function(){overHint(15);}
 		document.getElementById('ping_from_wan').onmouseout = function(){nd();}
 	}
@@ -446,12 +653,14 @@ function check_ping_form_wan(){
 
 function check_dmz(){
 	if(document.form.dmz_ip.value == ""){
+		safe_count++;
 		document.getElementById('dmz_service').innerHTML = "<#checkbox_Yes#>";
 		document.getElementById('dmz_service').className = "status_yes";
 	}
 	else{
+		risk_count++;
 		document.getElementById('dmz_service').innerHTML = "<a href='Advanced_Exposed_Content.asp' target='_blank'><#checkbox_No#></a>";
-		document.getElementById('dmz_service').className = "status_no";
+		document.getElementById('dmz_service').className = "status_no_risk";
 		document.getElementById('dmz_service').onmouseover = function(){overHint(16);}
 		document.getElementById('dmz_service').onmouseout = function(){nd();}
 	}
@@ -461,12 +670,14 @@ function check_port_trigger(){
 	var port_trigger_enable = document.form.autofw_enable_x.value;
 
 	if(port_trigger_enable == 0){
+		safe_count++;
 		document.getElementById('port_tirgger').innerHTML = "<#checkbox_Yes#>";
 		document.getElementById('port_tirgger').className = "status_yes";
 	}
 	else{
+		risk_count++;
 		document.getElementById('port_tirgger').innerHTML = "<a href='Advanced_PortTrigger_Content.asp' target='_blank'><#checkbox_No#></a>";
-		document.getElementById('port_tirgger').className = "status_no";
+		document.getElementById('port_tirgger').className = "status_no_risk";
 		document.getElementById('port_tirgger').onmouseover = function(){overHint(17);}
 		document.getElementById('port_tirgger').onmouseout = function(){nd();}
 	}
@@ -477,12 +688,14 @@ function check_port_forwarding(){
 	var port_forwarding_enable = document.form.vts_enable_x.value;
 
 	if(port_forwarding_enable == 0){
+		safe_count++;
 		document.getElementById('port_forwarding').innerHTML = "<#checkbox_Yes#>";
 		document.getElementById('port_forwarding').className = "status_yes";
 	}
 	else{
+		risk_count++;
 		document.getElementById('port_forwarding').innerHTML = "<a href='Advanced_VirtualServer_Content.asp' target='_blank'><#checkbox_No#></a>";
-		document.getElementById('port_forwarding').className = "status_no";
+		document.getElementById('port_forwarding').className = "status_no_risk";
 		document.getElementById('port_forwarding').onmouseover = function(){overHint(18);}
 		document.getElementById('port_forwarding').onmouseout = function(){nd();}
 	}
@@ -490,14 +703,16 @@ function check_port_forwarding(){
 
 function check_ftp_anonymous(){
 	var ftp_account_mode = document.form.st_ftp_mode.value;		//1: shared mode, 2: account mode
-	
+
 	if(ftp_account_mode == 1){
+		risk_count++;
 		document.getElementById('ftp_account').innerHTML = "<a href='Advanced_AiDisk_ftp.asp' target='_blank'><#checkbox_No#></a>";
-		document.getElementById('ftp_account').className = "status_no";
+		document.getElementById('ftp_account').className = "status_no_risk";
 		document.getElementById('ftp_account').onmouseover = function(){overHint(19);}
 		document.getElementById('ftp_account').onmouseout = function(){nd();}
 	}
 	else{
+		safe_count++;
 		document.getElementById('ftp_account').innerHTML = "<#checkbox_Yes#>";
 		document.getElementById('ftp_account').className = "status_yes";
 	}
@@ -505,14 +720,16 @@ function check_ftp_anonymous(){
 
 function check_samba_anonymous(){
 	var samba_account_mode = document.form.st_samba_mode.value;		//1: shared mode, 4: account mode
-	
+
 	if(samba_account_mode == 1){
+		risk_count++;
 		document.getElementById('samba_account').innerHTML = "<a href='Advanced_AiDisk_samba.asp' target='_blank'><#checkbox_No#></a>";
-		document.getElementById('samba_account').className = "status_no";
+		document.getElementById('samba_account').className = "status_no_risk";
 		document.getElementById('samba_account').onmouseover = function(){overHint(20);}
 		document.getElementById('samba_account').onmouseout = function(){nd();}
 	}
 	else{
+		safe_count++;
 		document.getElementById('samba_account').innerHTML = "<#checkbox_Yes#>";
 		document.getElementById('samba_account').className = "status_yes";
 	}
@@ -523,73 +740,71 @@ function check_TM_feature(){
 	var wrs_vp_enable = document.form.wrs_vp_enable.value;
 	var wrs_mals_enable = document.form.wrs_mals_enable.value;
 
-	if(wrs_mals_enable == 1){
+	if(wrs_mals_enable == 1 && document.form.wrs_protect_enable.value == 1){
+		safe_count++;
 		document.getElementById('wrs_service').innerHTML = "<#checkbox_Yes#>";
 		document.getElementById('wrs_service').className = "status_yes";
 	}
 	else{
+		risk_count++;
 		document.getElementById('wrs_service').innerHTML = "<a href='AiProtection_HomeProtection.asp' target='_blank'><#checkbox_No#></a>";
-		document.getElementById('wrs_service').className = "status_no";
+		document.getElementById('wrs_service').className = "status_no_risk";
 		document.getElementById('wrs_service').onmouseover = function(){overHint(21);}
 		document.getElementById('wrs_service').onmouseout = function(){nd();}
 	}
 
-	if(wrs_vp_enable == 1){
+	if(wrs_vp_enable == 1 && document.form.wrs_protect_enable.value == 1){
+		safe_count++;
 		document.getElementById('vp_service').innerHTML = "<#checkbox_Yes#>";
 		document.getElementById('vp_service').className = "status_yes";
 	}
 	else{
+		risk_count++;
 		document.getElementById('vp_service').innerHTML = "<a href='AiProtection_HomeProtection.asp' target='_blank'><#checkbox_No#></a>";
-		document.getElementById('vp_service').className = "status_no";
+		document.getElementById('vp_service').className = "status_no_risk";
 		document.getElementById('vp_service').onmouseover = function(){overHint(22);}
 		document.getElementById('vp_service').onmouseout = function(){nd();}
 	}
-	
-	if(wrs_cc_enable == 1){
+
+	if(wrs_cc_enable == 1 && document.form.wrs_protect_enable.value == 1){
+		safe_count++;
 		document.getElementById('cc_service').innerHTML = "<#checkbox_Yes#>";
 		document.getElementById('cc_service').className = "status_yes";
 	}
 	else{
+		risk_count++;
 		document.getElementById('cc_service').innerHTML = "<a href='AiProtection_HomeProtection.asp' target='_blank'><#checkbox_No#></a>";
-		document.getElementById('cc_service').className = "status_no";
+		document.getElementById('cc_service').className = "status_no_risk";
 		document.getElementById('cc_service').onmouseover = function(){overHint(23);}
 		document.getElementById('cc_service').onmouseout = function(){nd();}
 	}
 }
 
 function show_tm_eula(){
-	if(document.form.preferred_lang.value == "JP"){
-			$.get("JP_tm_eula.htm", function(data){
-				document.getElementById('agreement_panel').innerHTML= data;
-			});
-	}
-	else{
-			$.get("tm_eula.htm", function(data){
-				document.getElementById('agreement_panel').innerHTML= data;
-			});
-	}
+	$.get("tm_eula.htm", function(data){
+		document.getElementById('agreement_panel').innerHTML= data;
+		var url = "https://www.asus.com/Microsite/networks/Trend_Micro_EULA/";
+		$("#eula_url").attr("href",url);
+		url = "https://www.trendmicro.com/en_us/about/legal/privacy-policy-product.html"
+		$("#tm_eula_url").attr("href",url);
+		url = "https://success.trendmicro.com/data-collection-disclosure";
+		$("#tm_disclosure_url").attr("href",url);
+		adjust_TM_eula_height("agreement_panel");
+	});
+
 	dr_advise();
 	cal_panel_block("agreement_panel", 0.25);
 	$("#agreement_panel").fadeIn(300);
 }
 
 function cancel(){
-	button_flag = 0;
 	refreshpage();
 }
 
 function eula_confirm(){
 	document.form.TM_EULA.value = 1;
-	if(button_flag == 1){
-		document.form.wrs_mals_enable.value = 1;
-	}
-	else if(button_flag == 2){
-		document.form.wrs_vp_enable.value = 1;
-	}
-	else{
-		document.form.wrs_cc_enable.value = 1;
-	}
-	
+	document.form.wrs_protect_enable.value = "1";
+	document.form.action_wait.value = "15";
 	applyRule();
 }
 
@@ -613,47 +828,58 @@ smtpList = [
 	{smtpServer: "smtp.163.com", smtpPort: "25", smtpDomain: "163.com"},
 	{end: 0}
 ];
+
 function apply_alert_preference(){
 	var address_temp = document.getElementById('mail_address').value;
 	var account_temp = document.getElementById('mail_address').value.split("@");
-	
+	var authpass_temp = document.getElementById('mail_password').value;
+
 	var mail_bit = 0;
 	var server_index = document.getElementById("mail_provider").value;
 
-	
-	if(address_temp.indexOf('@') != -1){	
+	if(address_temp == "") {
+		alert("Please input the mail account!");
+		return;
+	}
+
+	if(authpass_temp == "") {
+		alert("Please input the mail password!");
+		return;
+	}
+
+	if(address_temp.indexOf('@') != -1){
 		if(account_temp[1] != "gmail.com" && account_temp[1] != "aol.com" && account_temp[1] != "qq.com" && account_temp[1] != "163.com"){
 			alert("Wrong mail domain");
 			document.getElementById('mail_address').focus();
 			return false;
 		}
-		
-		if(document.form.PM_MY_EMAIL.value == "" || document.form.PM_MY_EMAIL.value != address_temp)
-			document.form.action_script.value += ";send_confirm_mail";
-				
-		document.form.PM_MY_EMAIL.value = address_temp;	
+
+		if (document.form.PM_MY_EMAIL.value != address_temp)
+			document.form.action_script.value += ";email_conf;send_confirm_mail";
+
+		document.form.PM_MY_EMAIL.value = address_temp;
 	}
-	else{	
-		if(document.form.PM_MY_EMAIL.value == "" || document.form.PM_MY_EMAIL.value != address_temp)
-			document.form.action_script.value += ";send_confirm_mail";
-			
+	else{
+		if (document.form.PM_MY_EMAIL.value != address_temp)
+			document.form.action_script.value += ";email_conf;send_confirm_mail";
+
 		document.form.PM_MY_EMAIL.value = account_temp[0] + "@" +smtpList[server_index].smtpDomain;
 	}
-	
+
 	if(document.getElementById("mal_website_item").checked)
 		mail_bit += 1;
-	
+
 	if(document.getElementById("vp_item").checked)
 		mail_bit += 2;
-	
+
 	if(document.getElementById("cc_item").checked)
 		mail_bit += 4;
-	
+
 	document.form.wrs_mail_bit.value = mail_bit;
 	document.form.PM_SMTP_AUTH_USER.value = account_temp[0];
-	document.form.PM_SMTP_AUTH_PASS.value = document.getElementById('mail_password').value;	
-	document.form.PM_SMTP_SERVER.value = smtpList[server_index].smtpServer;	
-	document.form.PM_SMTP_PORT.value = smtpList[server_index].smtpPort;	
+	document.form.PM_SMTP_AUTH_PASS.value = document.getElementById('mail_password').value;
+	document.form.PM_SMTP_SERVER.value = smtpList[server_index].smtpServer;
+	document.form.PM_SMTP_PORT.value = smtpList[server_index].smtpPort;
 	$('#alert_preference').fadeOut(100);
 	document.form.submit();
 }
@@ -662,10 +888,10 @@ function parse_wrs_mail_bit(){
 	var quot = document.form.wrs_mail_bit.value;
 	var mail_bit_array =  new Array();
 	for(i=0;i<3;i++){
-		mail_bit_array[i] = quot%2; 
-		quot = parseInt(quot/2);	
+		mail_bit_array[i] = quot%2;
+		quot = parseInt(quot/2);
 	}
-	
+
 	document.getElementById("mal_website_item").checked =  mail_bit_array[0] == 1 ? true : false;
 	document.getElementById("vp_item").checked =  mail_bit_array[1] == 1 ? true : false;
 	document.getElementById("cc_item").checked =  mail_bit_array[2] == 1 ? true : false;
@@ -678,15 +904,24 @@ function check_smtp_server_type(){
 			break;
 		}
 	}
+}
+
+function shadeHandle(flag){
+	if(flag == "0"){
+		$(".shadow").toggle("display", "");
+	}
+	else{
+		$(".shadow").css("display", "none");
+	}
 
 }
 </script>
 </head>
 
-<body onload="initial();" onunload="unload_body();" onselectstart="return false;">
+<body onload="initial();" onunload="unload_body();">
 <div id="TopBanner"></div>
 <div id="Loading" class="popup_bg"></div>
-<div id="agreement_panel" class="panel_folder" style="margin-top: -100px;"></div>
+<div id="agreement_panel" class="eula_panel_container"></div>
 <div id="hiddenMask" class="popup_bg" style="z-index:999;">
 	<table cellpadding="5" cellspacing="0" id="dr_sweet_advise" class="dr_sweet_advise" align="center"></table>
 	<!--[if lte IE 6.5.]><script>alert("<#ALERT_TO_CHANGE_BROWSER#>");</script><![endif]-->
@@ -697,7 +932,7 @@ function check_smtp_server_type(){
 			<td>
 				<div class="weakness_router_status"><#AiProtection_scan#></div>
 			</td>
-		</tr>	
+		</tr>
 		<tr>
 			<td>
 				<div>
@@ -706,43 +941,43 @@ function check_smtp_server_type(){
 							<th><#AiProtection_scan_item1#> -</th>
 							<td>
 								<div id="login_password"></div>
-							</td>					
+							</td>
 						</tr>
 						<tr>
 							<th><#AiProtection_scan_item2#> -</th>
 							<td>
 								<div id="score"></div>
-							</td>			
+							</td>
 						</tr>
 						<tr>
 							<th><#AiProtection_scan_item3#> -</th>
 							<td>
 								<div id="wireless_encryption"></div>
-							</td>			
+							</td>
 						</tr>
 						<tr>
-							<th>WPS disabled -</th>
+							<th><#WPS_disabled#> -</th>
 							<td>
 								<div id="wps_status"></div>
-							</td>			
+							</td>
 						</tr>
 						<tr>
 							<th><#AiProtection_scan_item4#> -</th>
 							<td>
 								<div id="upnp_service"></div>
-							</td>	
+							</td>
 						</tr>
 						<tr>
 							<th><#AiProtection_scan_item5#> -</th>
 							<td>
 								<div id="access_from_wan"></div>
-							</td>	
+							</td>
 						</tr>
 						<tr>
 							<th><#AiProtection_scan_item6#> -</th>
 							<td>
 								<div id="ping_from_wan"></div>
-							</td>	
+							</td>
 						</tr>
 						<tr>
 							<th><#AiProtection_scan_item7#> -</th>
@@ -760,42 +995,42 @@ function check_smtp_server_type(){
 							<th><#AiProtection_scan_item9#> -</th>
 							<td>
 								<div id="port_forwarding"></div>
-							</td>		
+							</td>
 						</tr>
 						<tr>
 							<th><#AiProtection_scan_item10#> -</th>
 							<td>
 								<div id="ftp_account"></div>
-							</td>		
+							</td>
 						</tr>
 						<tr>
 							<th><#AiProtection_scan_item11#> -</th>
 							<td>
 								<div id="samba_account"></div>
-							</td>		
+							</td>
 						</tr>
 						<tr>
 							<th><#AiProtection_scan_item12#> -</th>
 							<td>
 								<div id="wrs_service"></div>
-							</td>	
+							</td>
 						</tr>
 						<tr>
 							<th><#AiProtection_scan_item13#> -</th>
 							<td>
 								<div id="vp_service"></div>
-							</td>						
+							</td>
 						</tr>
 						<tr>
 							<th><#AiProtection_detection_blocking#> -</th>
 							<td>
 								<div id="cc_service"></div>
-							</td>						
+							</td>
 						</tr>
 					</table>
 				</div>
 			</td>
-		</tr>	
+		</tr>
 		<tr>
 			<td>
 				<table style="margin-top:10px;margin-left:auto;margin-right:auto;">
@@ -804,7 +1039,7 @@ function check_smtp_server_type(){
 							<input class="button_gen" type="button" onclick="close_weakness_status();" value="<#CTL_close#>">
 						</td>
 						<td>
-							<input class="button_gen_long" type="button" onclick="enable_whole_security();" value="<#CTL_secure#>">
+							<input id="all_security_btn" class="button_gen_long" type="button" onclick="enable_whole_security();" value="<#CTL_secure#>">
 						</td>
 					</tr>
 				</table>
@@ -818,8 +1053,8 @@ function check_smtp_server_type(){
 	<table style="width:99%">
 		<tr>
 			<th>
-				<div style="font-size:16px;"><#AiProtection_alert_pref#></div>		
-			</th>		
+				<div style="font-size:16px;"><#AiProtection_alert_pref#></div>
+			</th>
 		</tr>
 			<td>
 				<div class="formfontdesc" style="font-style: italic;font-size: 14px;"><#AiProtection_HomeDesc1#></div>
@@ -832,22 +1067,14 @@ function check_smtp_server_type(){
 						<td>
 							<div>
 								<select class="input_option" id="mail_provider">
-									<option value="0">Google</option>							
-									<option value="1">AOL</option>							
-									<option value="2">QQ</option>							
-									<option value="3">163</option>							
+									<option value="0">Google</option>
+									<option value="1">AOL</option>
+									<option value="2">QQ</option>
+									<option value="3">163</option>
 								</select>
 							</div>
 						</td>
 					</tr>
-					<!--tr>
-						<th>Administrator</th>
-						<td>
-							<div>
-								<input type="type" class="input_20_table" name="user_name" value="">
-							</div>
-						</td>
-					</tr-->
 					<tr>
 						<th>Email</th>
 						<td>
@@ -865,9 +1092,9 @@ function check_smtp_server_type(){
 						</td>
 					</tr>
 					<tr>
-						<th>Notification Item</th>
+						<th><#Notification_Item#></th>
 						<td>
-							<div>							
+							<div>
 								<input type="checkbox" class="" id="mal_website_item" value="">
 								<label><#AiProtection_sites_blocking#></label>
 								<input type="checkbox" class="" id="vp_item" value="">
@@ -886,7 +1113,7 @@ function check_smtp_server_type(){
 					<input class="button_gen" type="button" onclick="close_alert_preference();" value="<#CTL_close#>">
 					<input class="button_gen_long" type="button" onclick="apply_alert_preference();" value="<#CTL_apply#>">
 				</div>
-			</td>		
+			</td>
 		</tr>
 	</table>
 </div>
@@ -896,7 +1123,7 @@ function check_smtp_server_type(){
 <input type="hidden" name="current_page" value="AiProtection_HomeProtection.asp">
 <input type="hidden" name="next_page" value="">
 <input type="hidden" name="modified" value="0">
-<input type="hidden" name="action_wait" value="5">
+<input type="hidden" name="action_wait" value="4">
 <input type="hidden" name="action_mode" value="apply">
 <input type="hidden" name="action_script" value="restart_wrs;restart_firewall">
 <input type="hidden" name="preferred_lang" id="preferred_lang" value="<% nvram_get("preferred_lang"); %>" disabled>
@@ -924,34 +1151,38 @@ function check_smtp_server_type(){
 <input type="hidden" name="st_ftp_mode" value="<% nvram_get("st_ftp_mode"); %>" disabled>
 <input type="hidden" name="st_samba_force_mode" value="<% nvram_get("st_samba_force_mode"); %>" disabled>
 <input type="hidden" name="st_samba_mode" value="<% nvram_get("st_samba_mode"); %>" disabled>
+<input type="hidden" name="wrs_mals_t" value="<% nvram_get("wrs_mals_t"); %>" >
+<input type="hidden" name="wrs_vp_t" value="<% nvram_get("wrs_vp_t"); %>" >
+<input type="hidden" name="wrs_cc_t" value="<% nvram_get("wrs_cc_t"); %>" >
+<input type="hidden" name="wrs_protect_enable" value="<% nvram_get("wrs_protect_enable"); %>" >
 
 <table class="content" align="center" cellpadding="0" cellspacing="0" >
 	<tr>
-		<td width="17">&nbsp;</td>		
-		<td valign="top" width="202">				
-			<div  id="mainMenu"></div>	
-			<div  id="subMenu"></div>		
-		</td>					
+		<td width="17">&nbsp;</td>
+		<td valign="top" width="202">
+			<div  id="mainMenu"></div>
+			<div  id="subMenu"></div>
+		</td>
 		<td valign="top">
-			<div id="tabMenu" class="submenuBlock"></div>	
-		<!--===================================Beginning of Main Content===========================================-->		
-			<table width="98%" border="0" align="left" cellpadding="0" cellspacing="0" >
+			<div id="tabMenu" class="submenuBlock"></div>
+		<!--===================================Beginning of Main Content===========================================-->
+			<table width="98%" border="0" align="left" cellpadding="0" cellspacing="0" class="content_bg">
 				<tr>
-					<td valign="top" >		
+					<td valign="top" >
 						<table width="730px" border="0" cellpadding="4" cellspacing="0" class="FormTitle" id="FormTitle">
 							<tbody>
 							<tr>
-								<td style="background:#4D595D" valign="top">
+								<td valign="top">
 									<div>&nbsp;</div>
 									<div>
 										<table width="730px">
 											<tr>
 												<td align="left">
-													<span class="formfonttitle"><#AiProtection_title#> - <#AiProtection_Home#></span>
+													<span class="formfonttitle"><#AiProtection_title#></span>
 												</td>
 											</tr>
 										</table>
-									</div>									
+									</div>
 									<div style="margin-left:5px;margin-top:10px;margin-bottom:10px"><img src="/images/New_ui/export/line_export.png"></div>
 									<div id="PC_desc">
 										<table width="700px" style="margin-left:25px;">
@@ -964,189 +1195,261 @@ function check_smtp_server_type(){
 													<table>
 														<tr>
 															<td>
-																<div style="width:430px"><#AiProtection_HomeDesc2#></div>
-																<div style="width:430px"><a style="text-decoration:underline;" href="http://www.asus.com/support/FAQ/1008719/" target="_blank"><#AiProtection_Home#> FAQ</a></div>
+																<div style="width:430px"><#AiProtection_desc#></div>
+																<div style="width:430px">
+																	<a id="faq" style="text-decoration:underline;" href="" target="_blank"><#AiProtection_title#> FAQ</a>
+																</div>
 															</td>
 															<td>
 																<div style="width:100px;height:48px;margin-left:-40px;background-image:url('images/New_ui/tm_logo.png');"></div>
 															</td>
 														</tr>
-														<tr>
+														<tr id="scenario_tr">
 															<td rowspan="2">
 																<div>
-																	<img src="/images/New_ui/Home_Protection_Scenario.png">
+																	<img id="scenario_img" src="/images/New_ui/Home_Protection_Scenario.png">
 																</div>
 															</td>
-														</tr>												
+														</tr>
 													</table>
 												</td>
-											</tr>									
+											</tr>
+										</table>
+									</div>
+									<div style="margin:10px;">
+										<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3"  class="FormTable">
+											<tr>
+												<th><#CTL_Enabled#> <#AiProtection_title#></th>
+												<td>
+													<div align="center" class="left" style="width:94px; float:left; cursor:pointer;" id="radio_protection_enable"></div>
+													<div class="iphone_switch_container" style="height:32px; width:74px; position: relative; overflow: hidden">
+														<script type="text/javascript">
+															$('#radio_protection_enable').iphoneSwitch('<% nvram_get("wrs_protect_enable"); %>',
+																function(){
+																	if(document.form.TM_EULA.value == 0){
+																		show_tm_eula();
+																		return;
+																	}
+
+																	document.form.wrs_protect_enable.value = "1";
+																	shadeHandle("1");
+																	applyRule();
+																},
+																function(){
+																	document.form.wrs_protect_enable.value = "0";
+																	shadeHandle("0");
+																	applyRule();
+																}
+															);
+														</script>
+													</div>
+												</td>
+											</tr>
 										</table>
 									</div>
 									<!--=====Beginning of Main Content=====-->
 									<div style="margin-top:5px;">
 										<table style="width:99%;border-collapse:collapse;">
-											<tr style="background-color:#444f53;height:120px;">
-												<td style="width:25%;border-radius:10px 0px 0px 10px;background-color:#444f53;">
-													<div style="text-align:center;background: url('/images/New_ui/AiProtection.png');width:130px;height:130px;margin-left:30px;"></div>	
+											<tr id="security_scan_tr" class="block_bg block_line" style="height:120px;">
+												<td style="border-radius:10px 0px 0px 10px;">
+													<div class="AiProtection_01"></div>
 												</td>
 												 <td width="6px">
-													<div><img src="/images/cloudsync/line.png"></div>
+													<div class="line_1"></div>
 												</td>
 												<td style="padding:10px;">
 													<div style="font-size:18px;text-shadow:1px 1px 0px black;"><#AiProtection_scan#></div>
 													<div style="font-style: italic;font-size: 14px;color:#FC0;height:auto;padding-top:5px;"><#AiProtection_scan_desc#></div>
 												</td>
 												 <td width="6px">
-													<div><img src="/images/cloudsync/line.png"></div>
+													<div><img src="/images/line.png"></div>
+												</td>
+												<td style="width:20%;">
+													<div>
+														<input class="button_gen" type="button" onclick="showWeaknessTable();" value="<#CTL_scan#>">
+													</div>
+												</td>
+												<td>
+													<div><img src="/images/line.png"></div>
 												</td>
 												<td style="width:20%;border-radius:0px 10px 10px 0px;">
-													<div>
-														<input class="button_gen" type="button" onclick="check_weakness();" value="<#CTL_scan#>">
+													<div id="router_scan_status" style="text-align:center;">
+														<div id="router_scan_count" style="width:50px;height:50px;background-color:#ED1C24;border-radius:50%;margin-left:45px;line-height: 50px;font-size:30px;"></div>
+														<div id="router_scan_state" style="font-size: 16px;padding-top:5px;"></div>
 													</div>
-												</td>										
+												</td>
 											</tr>
-											
 											<tr style="height:10px;"></tr>
-											<tr style="background-color:#444f53;height:120px;">
-												<td style="width:25%;border-radius:10px 0px 0px 10px;background-color:#444f53;">
-													<div style="text-align:center;background: url('/images/New_ui/AiProtection.png');width:130px;height:130px;margin-left:30px;background-position:0px -187px;"></div>	
+											<tr class="block_bg block_line" style="height:120px;">
+												<td style="border-radius:10px 0px 0px 10px;">
+													<div class="AiProtection_02"></div>
 												</td>
 												 <td width="6px">
-													<div style="background:url('/images/cloudsync/line.png') no-repeat;width:6px;height:185px;background-size:4px 185px;";></div>
+													<div class="line_1"></div>
 												</td>
-												<td style="padding:10px;">
+												<td style="padding:10px;cursor:pointer;" onclick="location.href='AiProtection_MaliciousSitesBlocking.asp'">
 													<div>
-														<table>
-															<tr>
-																<td style="padding-bottom:10px;">
-																	<div style="font-size:18px;text-shadow:1px 1px 0px black;"><#AiProtection_sites_blocking#></div>
-																	<div style="font-style: italic;font-size: 14px;color:#FC0;height:auto;padding-top:5px;"><#AiProtection_sites_block_desc#></div>
-																</td>
-															</tr>										
-															<tr>
-																<td>
-																	<div style="font-size:18px;text-shadow:1px 1px 0px black;"><#AiProtection_Vulnerability#></div>
-																	<div style="font-style: italic;font-size: 14px;color:#FC0;height:auto;padding-top:5px;"><#AiProtection_Vulnerability_desc#></div>
-																</td>
-															</tr>
-														</table>
-													</div>								
-												</td>
-												 <td width="6px">
-													<div style="background:url('/images/cloudsync/line.png') no-repeat;width:6px;height:185px;background-size:4px 185px;";></div>
-												</td>
-												<td style="width:20%;border-radius:0px 10px 10px 0px;">
-													<div>
-														<table>
-															<tr>
-																<td>
-																	<div align="center" class="left" style="width:94px; float:left; cursor:pointer;" id="radio_mals_enable"></div>
-																	<div class="iphone_switch_container" style="height:32px; width:74px; position: relative; overflow: hidden">
-																		<script type="text/javascript">
-																			$('#radio_mals_enable').iphoneSwitch('<% nvram_get("wrs_mals_enable"); %>',
-																				function(){																					
-																					if(document.form.TM_EULA.value == 0){
-																						button_flag = 1;
-																						show_tm_eula();
-																						return;
-																					}
-																				
-																					document.form.wrs_mals_enable.value = 1;
-																					applyRule();																				
-																				},
-																				function(){
-																					document.form.wrs_mals_enable.value = 0;
-																					applyRule();
-																				}
-																			);
-																		</script>			
-																	</div>
-																</td>													
-															</tr>
-															<tr>
-																<td>
-																	<div align="center" class="left" style="width:94px; float:left; cursor:pointer;" id="radio_vp_enable"></div>
-																	<div class="iphone_switch_container" style="height:32px; width:74px; position: relative; overflow: hidden">
-																		<script type="text/javascript">
-																			$('#radio_vp_enable').iphoneSwitch('<% nvram_get("wrs_vp_enable"); %>',
-																				function(){																				
-																					if(document.form.TM_EULA.value == 0){
-																						button_flag = 2;
-																						show_tm_eula();
-																						return;
-																					}
-																				
-																					document.form.wrs_vp_enable.value = 1;	
-																					applyRule();	
-																				},
-																				function(){
-																					document.form.wrs_vp_enable.value = 0;	
-																					applyRule();	
-																				}
-																			);
-																		</script>			
-																	</div>
-																</td>													
-															</tr>
-														</table>
+														<div style="font-size:18px;text-shadow:1px 1px 0px black;"><#AiProtection_sites_blocking#></div>
+														<div style="font-style: italic;font-size: 14px;color:#FC0;height:auto;padding-top:5px;"><#AiProtection_sites_block_desc#></div>
 													</div>
-												</td>										
-											</tr>
-											<tr style="height:10px;"></tr>										
-											<tr style="background-color:#444f53;height:120px;">
-												<td style="width:25%;border-radius:10px 0px 0px 10px;background-color:#444f53;">
-													<div style="text-align:center;background: url('/images/New_ui/AiProtection.png');width:130px;height:140px;margin-left:30px;background-position:0px -385px";></div>	
 												</td>
 												 <td width="6px">
-													<div><img src="/images/cloudsync/line.png"></div>
+													<div><img src="/images/line.png"></div>
 												</td>
-												<td style="padding:10px;">
+												<td style="width:20%;">
+													<div style="position:relative;">
+														<div id="mals_shade" class="shadow"></div>
+														<div align="center" class="left" style="width:94px; float:left; cursor:pointer;" id="radio_mals_enable"></div>
+														<div class="iphone_switch_container" style="height:32px; width:74px; position: relative; overflow: hidden">
+															<script type="text/javascript">
+																$('#radio_mals_enable').iphoneSwitch('<% nvram_get("wrs_mals_enable"); %>',
+																	function(){
+																		document.form.wrs_mals_enable.value = 1;
+																		applyRule();
+																	},
+																	function(){
+																		document.form.wrs_mals_enable.value = 0;
+																		applyRule();
+																	}
+																);
+															</script>
+														</div>
+													</div>
+												</td>
+												<td >
+													<div><img src="/images/line.png"></div>
+												</td>
+												<td style="width:20%;border-radius:0px 10px 10px 0px;cursor:pointer;">
+													<div style="position:relative" onclick="location.href='AiProtection_MaliciousSitesBlocking.asp'">
+														<div id="mals_count_shade" class="shadow shadow_m"></div>
+														<div style="text-align:center;">
+															<div id="mali_count" style="width:45px;height:45px;margin:0 auto;line-height: 45px;font-size:38px;color:#FC0;text-shadow:1px 1px 0px black"></div>
+															<div style="font-size: 16px;"><#AiProtection_scan_rHits#></div>
+															<div id="mali_time" style="height:25px;color:#A1A7A8"></div>
+														</div>
+													</div>
+
+												</td>
+											</tr>
+
+											<tr id="twoWayIPS_padding" style="height:10px;"></tr>
+											<tr id="twoWayIPS_field" class="block_bg block_line" style="height:120px;">
+												<td style="border-radius:10px 0px 0px 10px;">
+													<div class="AiProtection_02"></div>
+												</td>
+												 <td width="6px">
+													<div class="line_1"></div>
+												</td>
+												<td style="padding:10px;cursor:pointer;" onclick="location.href='AiProtection_IntrusionPreventionSystem.asp'">
+													<div>
+														<div style="font-size:18px;text-shadow:1px 1px 0px black;"><#AiProtection_two-way_IPS#></div>
+														<div style="font-style: italic;font-size: 14px;color:#FC0;height:auto;padding-top:5px;"><#AiProtection_two-way_IPS_desc#></div>
+													</div>
+												</td>
+												 <td width="6px">
+													<div><img src="/images/line.png"></div>
+												</td>
+												<td style="width:20%;">
+													<div style="position:relative">
+														<div id="vp_shade" class="shadow"></div>
+														<div align="center" class="left" style="width:94px; float:left; cursor:pointer;" id="radio_vp_enable"></div>
+														<div class="iphone_switch_container" style="height:32px; width:74px; position: relative; overflow: hidden">
+															<script type="text/javascript">
+																$('#radio_vp_enable').iphoneSwitch('<% nvram_get("wrs_vp_enable"); %>',
+																	function(){
+																		document.form.wrs_vp_enable.value = 1;
+																		applyRule();
+																	},
+																	function(){
+																		document.form.wrs_vp_enable.value = 0;
+																		applyRule();
+																	}
+																);
+															</script>
+														</div>
+													</div>
+												</td>
+												<td >
+													<div><img src="/images/line.png"></div>
+												</td>
+												<td style="width:20%;border-radius:0px 10px 10px 0px;cursor:pointer;">
+													<div style="position:relative" onclick="location.href='AiProtection_IntrusionPreventionSystem.asp'">
+														<div id="vp_count_shade" class="shadow shadow_m"></div>
+														<div style="text-align:center;">
+															<div id="vp_count" style="width:45px;height:45px;margin:0 auto;line-height: 45px;font-size:38px;color:#FC0;text-shadow:1px 1px 0px black"></div>
+															<div style="font-size: 16px;"><#AiProtection_scan_rHits#></div>
+															<div id="vp_time" style="height:25px;color:#A1A7A8"></div>
+														</div>
+													</div>
+												</td>
+											</tr>
+
+											<tr style="height:10px;"></tr>
+											<tr class="block_bg" style="height:120px;">
+												<td style="border-radius:10px 0px 0px 10px;">
+													<div class="AiProtection_03"></div>
+												</td>
+												 <td width="6px">
+													<div class="line_1"></div>
+												</td>
+												<td style="padding:10px;cursor:pointer" onclick="location.href='AiProtection_InfectedDevicePreventBlock.asp'">
 													<div style="font-size:18px;text-shadow:1px 1px 0px black;"><#AiProtection_detection_blocking#></div>
 													<div style="font-style: italic;font-size: 14px;color:#FC0;height:auto;;padding-top:5px;"><#AiProtection_detection_block_desc#></div>
 												</td>
-												 <td width="6px">
-													<div><img src="/images/cloudsync/line.png"></div>
+												 <td>
+													<div><img src="/images/line.png"></div>
 												</td>
-												<td style="width:20%;border-radius:0px 10px 10px 0px;">
-													<div align="center" class="left" style="width:94px; float:left; cursor:pointer;" id="radio_cc_enable"></div>
-													<div class="iphone_switch_container" style="height:32px; width:74px; position: relative; overflow: hidden">
-														<script type="text/javascript">
-															$('#radio_cc_enable').iphoneSwitch('<% nvram_get("wrs_cc_enable"); %>',
-																function(){																
-																	if(document.form.TM_EULA.value == 0){
-																		button_flag = 3;
-																		show_tm_eula();
-																		return;
+												<td style="width:20%;">
+													<div style="position:relative">
+														<div id="cc_shade" class="shadow"></div>
+														<div align="center" class="left" style="width:94px; float:left; cursor:pointer;" id="radio_cc_enable"></div>
+														<div class="iphone_switch_container" style="height:32px; width:74px; position: relative; overflow: hidden">
+															<script type="text/javascript">
+																$('#radio_cc_enable').iphoneSwitch('<% nvram_get("wrs_cc_enable"); %>',
+																	function(){
+																		document.form.wrs_cc_enable.value = 1;
+																		applyRule();
+																	},
+																	function(){
+																		document.form.wrs_cc_enable.value = 0;
+																		applyRule();
 																	}
-																
-																	document.form.wrs_cc_enable.value = 1;	
-																	applyRule();	
-																},
-																function(){
-																	document.form.wrs_cc_enable.value = 0;
-																	applyRule();
-																}
-															);
-														</script>			
+																);
+															</script>
+														</div>
 													</div>
-													<div style="margin-top:-15px;">
-														<input class="button_gen_long" type="button" onclick="show_alert_preference();" value="<#AiProtection_alert_pref#>">
+												</td>
+												<td>
+													<div><img src="/images/line.png"></div>
+												</td>
+												<td style="width:20%;border-radius:0px 10px 10px 0px;cursor:pointer;">
+													<div style="position:relative" onclick="location.href='AiProtection_InfectedDevicePreventBlock.asp'">
+														<div id="infected_count_shade" class="shadow shadow_m"></div>
+														<div style="text-align:center;">
+															<div id="infected_count" style="width:45px;height:45px;margin:0 auto;line-height: 45px;font-size:38px;color:#FC0;text-shadow:1px 1px 0px black"></div>
+															<div style="font-size: 16px;"><#AiProtection_scan_rHits#></div>
+															<div id="infected_time" style="height:25px;color:#A1A7A8"></div>
+														</div>
 													</div>
-												</td>										
+												</td>
 											</tr>
 										</table>
 									</div>
-									<div style="width:135px;height:55px;margin: 10px 0 0 600px;background-image:url('images/New_ui/tm_logo_power.png');"></div>
+									<div style=";margin:20px 0;text-align:right">
+										<div style="display:inline-block">
+											<input class="button_gen_long" type="button" onclick="show_alert_preference();" value="<#AiProtection_alert_pref#>">
+										</div>
+									</div>
+									<div style="width:135px;height:55px;margin: -10px 0 0 600px;background-image:url('images/New_ui/tm_logo_power.png');"></div>
 								</td>
 							</tr>
-							</tbody>	
+							</tbody>
 						</table>
-					</td>         
+					</td>
 				</tr>
-			</table>				
-		<!--===================================Ending of Main Content===========================================-->		
-		</td>		
+			</table>
+		<!--===================================Ending of Main Content===========================================-->
+		</td>
 		<td width="10" align="center" valign="top">&nbsp;</td>
 	</tr>
 </table>

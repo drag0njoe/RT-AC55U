@@ -9,7 +9,7 @@
 <link rel="shortcut icon" href="images/favicon.png">
 <link rel="icon" href="images/favicon.png">
 <title><#Web_Title#> - <#Adaptive_History#></title>
-<link rel="stylesheet" type="text/css" href="index_style.css"> 
+<link rel="stylesheet" type="text/css" href="index_style.css">
 <link rel="stylesheet" type="text/css" href="form_style.css">
 <link rel="stylesheet" type="text/css" href="usp_style.css">
 <link rel="stylesheet" type="text/css" href="css/element.css">
@@ -20,6 +20,7 @@
 <script type="text/javascript" src="/popup.js"></script>
 <script type="text/javascript" src="/client_function.js"></script>
 <script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
+<script type="text/javascript" src="/js/httpApi.js"></script>
 <style>
 .transition_style{
 	-webkit-transition: all 0.2s ease-in-out;
@@ -38,52 +39,120 @@ function initial(){
 	show_menu();
 	if(document.form.bwdpi_wh_enable.value == 1){
 		document.getElementById("log_field").style.display = "";
-		getWebHistory();
+		getWebHistory("all", "1");
 		genClientListOption();
 	}
-	else{	
+	else{
 		document.getElementById("log_field").style.display = "none";
-	}	
+	}
 }
+
+var htmlEnDeCode = (function() {
+    var charToEntityRegex,
+        entityToCharRegex,
+        charToEntity,
+        entityToChar;
+
+    function resetCharacterEntities() {
+        charToEntity = {};
+        entityToChar = {};
+        // add the default set
+        addCharacterEntities({
+            '&amp;'     :   '&',
+            '&gt;'      :   '>',
+            '&lt;'      :   '<',
+            '&quot;'    :   '"',
+            '&#39;'     :   "'"
+        });
+    }
+
+    function addCharacterEntities(newEntities) {
+        var charKeys = [],
+            entityKeys = [],
+            key, echar;
+        for (key in newEntities) {
+            echar = newEntities[key];
+            entityToChar[key] = echar;
+            charToEntity[echar] = key;
+            charKeys.push(echar);
+            entityKeys.push(key);
+        }
+        charToEntityRegex = new RegExp('(' + charKeys.join('|') + ')', 'g');
+        entityToCharRegex = new RegExp('(' + entityKeys.join('|') + '|&#[0-9]{1,5};' + ')', 'g');
+    }
+
+    function htmlEncode(value){
+        var htmlEncodeReplaceFn = function(match, capture) {
+            return charToEntity[capture];
+        };
+
+        return (!value) ? value : String(value).replace(charToEntityRegex, htmlEncodeReplaceFn);
+    }
+
+    function htmlDecode(value) {
+        var htmlDecodeReplaceFn = function(match, capture) {
+            return (capture in entityToChar) ? entityToChar[capture] : String.fromCharCode(parseInt(capture.substr(2), 10));
+        };
+
+        return (!value) ? value : String(value).replace(entityToCharRegex, htmlDecodeReplaceFn);
+    }
+
+    resetCharacterEntities();
+
+    return {
+        htmlEncode: htmlEncode,
+        htmlDecode: htmlDecode
+    };
+})();
+
 var data_array = new Array();
 function parsingAjaxResult(rawData){
 	var match = 0;;
 	for(i=0;i<rawData.length;i++){
+		var thisRawData = rawData[i];
+		thisRawData[2] = htmlEnDeCode.htmlEncode(rawData[i][2]);
+
 		for(j=0;j<data_array.length;j++){
-			if((data_array[j][0] == rawData[i][0])
-			&& (data_array[j][1] == rawData[i][1])
-			&& (data_array[j][2].toUpperCase() == rawData[i][2].toUpperCase())){
-				match = 1;				
+			if((data_array[j][0] == thisRawData[0])
+			&& (data_array[j][1] == thisRawData[1])
+			&& (data_array[j][2].toUpperCase() == thisRawData[2].toUpperCase())){
+				match = 1;
 				break;
-			}	
+			}
 		}
-				
+
 		if(match == 0)
-			data_array.push(rawData[i]);
-		
+			data_array.push(thisRawData);
+
 		match = 0;
 	}
 
 	var code = "";
 	code += "<tr>";
 	code += "<th style='width:20%;text-align:left'>Access Time</th>";
-	code += "<th style='width:30%;text-align:left'>MAC Address / Client's Name</th>";
+	code += "<th style='width:30%;text-align:left'><#PPPConnection_x_MacAddressForISP_itemname#> / <#Client_Name#></th>";
 	code += "<th style='width:50%;text-align:left'>Domain Name</th>";
 	code += "</tr>";
-	for(var i=0; i<data_array.length; i++){	
+	for(var i=0; i<data_array.length; i++){
+		var thisLog = {
+			macAddr: data_array[i][0],
+			timeStamp: data_array[i][1],
+			hostName: data_array[i][2]
+		}
+
 		code += "<tr style='line-height:15px;'>";
-		code += "<td>" + convertTime(data_array[i][1]) + "</td>";
-		if(clientList[data_array[i][0]] != undefined) {
-			var clientName = (clientList[data_array[i][0]].nickName == "") ? clientList[data_array[i][0]].name : clientList[data_array[i][0]].nickName;
-			code += "<td title="+ data_array[i][0] + ">" + clientName + "</td>";
+		code += "<td>" + convertTime(thisLog.timeStamp) + "</td>";
+		if(clientList[thisLog.macAddr] != undefined) {
+			var clientName = (clientList[thisLog.macAddr].nickName == "") ? clientList[thisLog.macAddr].name : clientList[thisLog.macAddr].nickName;
+			code += "<td title="+ thisLog.macAddr + ">" + clientName + "</td>";
 		}
 		else
-			code += "<td>" + data_array[i][0] + "</td>";
-		
-		code += "<td>" + data_array[i][2] + "</td>";	
+			code += "<td>" + thisLog.macAddr + "</td>";
+
+		code += "<td>" + thisLog.hostName + "</td>";
 		code += "</tr>";
 	}
-	
+
 	document.getElementById('log_table').innerHTML = code;
 	data_array = [];
 }
@@ -94,9 +163,9 @@ function convertTime(t){
 	time.setTime(t*1000);
 
 	time_string = time.getFullYear() + "-" + (time.getMonth() + 1) + "-";
-	time_string += transform_time_format(time.getDate());	  
+	time_string += transform_time_format(time.getDate());
 	time_string += "&nbsp&nbsp" + transform_time_format(time.getHours()) + ":" + transform_time_format(time.getMinutes()) + ":" + transform_time_format(time.getSeconds());
-	
+
 	return time_string;
 }
 
@@ -106,52 +175,45 @@ function transform_time_format(time){
 		string += "0" + time;
 	else
 		string += time;
-		
+
 	return string;
 }
 
 var history_array = new Array();
 function getWebHistory(mac, page){
-	var page_count = page ? page : "1";
-	var client = mac ? ("?client=" + mac) : ("?page=" + page_count); 
+	var page_count = page;
+	var client = "?client=" + mac + "&page=" + page_count;
 
 	$.ajax({
 		url: '/getWebHistory.asp' + client,
-		dataType: 'script',	
+		dataType: 'script',
 		error: function(xhr){
 			setTimeout("getWebHistory();", 1000);
 		},
 		success: function(response){
 			history_array = array_temp;
 			parsingAjaxResult(array_temp);
-			if(page_count == "1" || document.getElementById('clientListOption').value  != ""){
+			if(page_count == "1"){
 				document.getElementById('previous_button').style.visibility = "hidden";
 			}
 			else{
-				document.getElementById('previous_button').style.visibility = "visible";		
+				document.getElementById('previous_button').style.visibility = "visible";
 			}
-			
-			if(history_array.length < 50 || document.getElementById('clientListOption').value  != ""){
+
+			if(history_array.length < 50){
 				document.getElementById('next_button').style.visibility = "hidden";
 			}
 			else{
-				document.getElementById('next_button').style.visibility = "visible";			
+				document.getElementById('next_button').style.visibility = "visible";
 			}
-			
-			if(document.getElementById('clientListOption').value  == "" && page_count == "1" && history_array.length < 50){
-				document.getElementById('current_page').style.visibility = "hidden";			
-			}
-			else{
-				document.getElementById('current_page').style.visibility = "visible";			
-			}
-					
-			if(document.getElementById('clientListOption').value  != ""){			
-				document.getElementById('current_page').style.display = "none";
+
+			if(page_count == "1" && history_array.length < 50){
+				document.getElementById('current_page').style.visibility = "hidden";
 			}
 			else{
-				document.getElementById('current_page').style.display = "";
+				document.getElementById('current_page').style.visibility = "visible";
 			}
-			
+
 			document.getElementById('current_page').value = page_count;
 		}
 	});
@@ -172,36 +234,45 @@ function genClientListOption(){
 
 		var clientName = (clientObj.nickName == "") ? clientObj.name : clientObj.nickName;
 		var newItem = new Option(clientName, clientObj.mac);
-		document.getElementById("clientListOption").options.add(newItem); 
+		document.getElementById("clientListOption").options.add(newItem);
 	}
 }
 
-function change_page(flag){
+function change_page(flag, target){
 	var current_page = document.getElementById('current_page').value;
 	var page = 1;
 	if(flag == "next"){
 		page = parseInt(current_page) + 1;
-		getWebHistory("", page);
+		getWebHistory(target, page);
 	}
 	else{
 		page = parseInt(current_page) - 1;
 		if(page < 1)
 			page = 1;
-	
-		getWebHistory("", page);
+
+		getWebHistory(target, page);
 	}
 }
 function eula_confirm(){
 	document.form.TM_EULA.value = 1;
 	document.form.bwdpi_wh_enable.value = 1;
-	document.form.submit();
+	if(reset_wan_to_fo(document.form, document.form.bwdpi_wh_enable.value)) {
+		document.form.action_wait.value = "15";
+		document.form.submit();
+	}
+	else {
+		cancel();
+	}
 }
 
 function cancel(){
 	curState = 0;
+	document.form.bwdpi_wh_enable.value = 1;
 	$('#iphone_switch').animate({backgroundPosition: -37}, "slow", function() {});
 	$("#agreement_panel").fadeOut(100);
 	document.getElementById("hiddenMask").style.visibility = "hidden";
+	htmlbodyforIE = parent.document.getElementsByTagName("html");  //this both for IE&FF, use "html" but not "body" because <!DOCTYPE html PUBLIC.......>
+	htmlbodyforIE[0].style.overflow = "scroll";	  //hidden the Y-scrollbar for preventing from user scroll it.
 }
 function cal_panel_block(obj){
 	var blockmarginLeft;
@@ -209,18 +280,18 @@ function cal_panel_block(obj){
 		winWidth = window.innerWidth;
 	else if ((document.body) && (document.body.clientWidth))
 		winWidth = document.body.clientWidth;
-		
+
 	if (document.documentElement  && document.documentElement.clientHeight && document.documentElement.clientWidth){
 		winWidth = document.documentElement.clientWidth;
 	}
 
-	if(winWidth >1050){	
-		winPadding = (winWidth-1050)/2;	
+	if(winWidth >1050){
+		winPadding = (winWidth-1050)/2;
 		winWidth = 1105;
 		blockmarginLeft= (winWidth*0.2)+winPadding;
 	}
 	else if(winWidth <=1050){
-		blockmarginLeft= (winWidth)*0.2 + document.body.scrollLeft;	
+		blockmarginLeft= (winWidth)*0.2 + document.body.scrollLeft;
 	}
 
 	if(obj == "demo_background")
@@ -228,12 +299,17 @@ function cal_panel_block(obj){
 	else
 		document.getElementById(obj).style.marginLeft = blockmarginLeft+"px";
 }
+function updateWebHistory() {
+	setTimeout(function() {
+		getWebHistory(document.form.clientList.value);
+	}, 200);
+}
 </script>
 </head>
 <body onload="initial();" onunload="unload_body();">
 <div id="TopBanner"></div>
 <div id="Loading" class="popup_bg"></div>
-<div id="agreement_panel" class="panel_folder" style="margin-top: -100px;"></div>
+<div id="agreement_panel" class="eula_panel_container"></div>
 <div id="hiddenMask" class="popup_bg" style="z-index:999;">
 	<table cellpadding="5" cellspacing="0" id="dr_sweet_advise" class="dr_sweet_advise" align="center"></table>
 	<!--[if lte IE 6.5]><iframe class="hackiframe"></iframe><![endif]-->
@@ -249,6 +325,7 @@ function cal_panel_block(obj){
 <input type="hidden" name="action_wait" value="3">
 <input type="hidden" name="flag" value="">
 <input type="hidden" name="bwdpi_wh_enable" value="<% nvram_get("bwdpi_wh_enable"); %>">
+<input type="hidden" name="bwdpi_wh_stamp" value="<% nvram_get("bwdpi_wh_stamp"); %>">
 <input type="hidden" name="TM_EULA" value="<% nvram_get("TM_EULA"); %>">
 <table class="content" align="center" cellpadding="0" cellspacing="0">
 	<tr>
@@ -256,13 +333,13 @@ function cal_panel_block(obj){
 		<td valign="top" width="202">
 			<div id="mainMenu"></div>
 			<div id="subMenu"></div>
-		</td>	
+		</td>
 		<td valign="top">
-			<div id="tabMenu" class="submenuBlock"></div>		
+			<div id="tabMenu" class="submenuBlock"></div>
 			<table width="98%" border="0" align="left" cellpadding="0" cellspacing="0">
 				<tr>
-					<td align="left" valign="top">				
-						<table width="760px" border="0" cellpadding="5" cellspacing="0" bordercolor="#6b8fa3"  class="FormTitle" id="FormTitle">		
+					<td align="left" valign="top">
+						<table width="760px" border="0" cellpadding="5" cellspacing="0" bordercolor="#6b8fa3"  class="FormTitle" id="FormTitle">
 							<tr>
 								<td bgcolor="#4D595D" colspan="3" valign="top">
 									<div>&nbsp;</div>
@@ -273,31 +350,54 @@ function cal_panel_block(obj){
 									</div>
 									<div style="margin:5px">
 										<table style="margin-left:0px;" width="95%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
-											<th>Enable Web History</th>
+											<th><#Adaptive_History#></th>
 											<td>
 												<div align="center" class="left" style="width:94px; float:left; cursor:pointer;" id="bwdpi_wh_enable"></div>
 															<script type="text/javascript">
 																$('#bwdpi_wh_enable').iphoneSwitch('<% nvram_get("bwdpi_wh_enable"); %>',
 																	function(){
 																		if(document.form.TM_EULA.value == 0){
-																			if(document.form.preferred_lang.value == "JP"){
-																				$.get("JP_tm_eula.htm", function(data){
-																					document.getElementById('agreement_panel').innerHTML= data;
-																				});
-																			}
-																			else{
-																				$.get("tm_eula.htm", function(data){
-																					document.getElementById('agreement_panel').innerHTML= data;
-																				});
-																			}	
+																			var adjust_TM_eula_height = function(_objID) {
+																				var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+																				document.getElementById(_objID).style.top = (scrollTop + 10) + "px";
+																				var visiable_height = document.documentElement.clientHeight;
+																				var tm_eula_container_height = parseInt(document.getElementById(_objID).offsetHeight);
+																				var tm_eula_visiable_height = visiable_height - tm_eula_container_height;
+																				if(tm_eula_visiable_height < 0) {
+																					var tm_eula_content_height = parseInt(document.getElementById("tm_eula_content").style.height);
+																					document.getElementById("tm_eula_content").style.height = (tm_eula_content_height - Math.abs(tm_eula_visiable_height) - 20) + "px"; //content height - overflow height - margin top and margin bottom
+																				}
+																			};
+
+																			$.get("tm_eula.htm", function(data){
+																				document.getElementById('agreement_panel').innerHTML= data;
+																				var url = "https://www.asus.com/Microsite/networks/Trend_Micro_EULA/";
+																				$("#eula_url").attr("href",url);
+																				url = "https://www.trendmicro.com/en_us/about/legal/privacy-policy-product.html"
+																				$("#tm_eula_url").attr("href",url);
+																				url = "https://success.trendmicro.com/data-collection-disclosure";
+																				$("#tm_disclosure_url").attr("href",url);
+																				adjust_TM_eula_height("agreement_panel");
+																			});
+
 																			dr_advise();
 																			cal_panel_block("agreement_panel", 0.25);
 																			$("#agreement_panel").fadeIn(300);
 																			return false;
 																		}
-																			
+																			var t = new Date();
+																			var timestamp = t.getTime().toString().substring(0,10);
+
+																			document.form.bwdpi_wh_stamp.value = timestamp;
 																			document.form.bwdpi_wh_enable.value = 1;
-																			document.form.submit();
+																			if(reset_wan_to_fo(document.form, document.form.bwdpi_wh_enable.value)) {
+																				document.form.submit();
+																			}
+																			else {
+																				curState = 0;
+																				document.form.bwdpi_wh_enable.value = 0;
+																				$('#bwdpi_wh_enable').find('.iphone_switch').animate({backgroundPosition: -37}, "slow");
+																			}
 																	},
 																	function(){
 																		document.form.bwdpi_wh_enable.value = 0;
@@ -310,30 +410,32 @@ function cal_panel_block(obj){
 									</div>
 									<div id="log_field">
 										<div style="margin:10px 5px">
-											<select id="clientListOption" class="input_option" name="clientList" onchange="getWebHistory(this.value);">
-												<option value="" selected>All client</option>
+											<select id="clientListOption" class="input_option" name="clientList" onchange="getWebHistory(this.value, '1');">
+												<option value="all" selected><#All_Client#></option>
 											</select>
-											<label style="margin: 0 5px 0 20px;visibility:hidden;cursor:pointer" id="previous_button" onclick="change_page('previous');">Previous</label>
+											<label style="margin: 0 5px 0 20px;visibility:hidden;cursor:pointer" id="previous_button" onclick="change_page('previous', document.getElementById('clientListOption').value);">Previous</label>
 											<input class="input_3_table" value="1" id="current_page"></input>
-											<label style="margin-left:5px;cursor:pointer" id="next_button" onclick="change_page('next');">Next</label>
+											<label style="margin-left:5px;cursor:pointer" id="next_button" onclick="change_page('next', document.getElementById('clientListOption').value);">Next</label>
 										</div>
-										<div style="height:600px;border:1px solid #A9A9A9;overflow:auto;margin:5px">
+										<div class="web_frame" style="height:600px;overflow:auto;margin:5px">
 											<table style="width:100%" id="log_table"></table>
 										</div>
 										<div class="apply_gen">
+											<input class="button_gen_long" onClick="httpApi.cleanLog('web_history', updateWebHistory);" type="button" value="<#CTL_clear#>" >
 											<input class="button_gen_long" onClick="getWebHistory(document.form.clientList.value)" type="button" value="<#CTL_refresh#>">
 										</div>
 									</div>
 								</td>
 							</tr>
 						</table>
-					</td>  
+					</td>
 				</tr>
 			</table>
 			<!--===================================End of Main Content===========================================-->
-		</td>		
+		</td>
 	</tr>
 </table>
+</form>
 <div id="footer"></div>
 </body>
 </html>

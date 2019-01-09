@@ -33,7 +33,6 @@ CFLAGS += -Wall -g -Os -D_GNU_SOURCE $(EXTRACFLAGS) -D_FILE_OFFSET_BITS=64 \
 	-I$(TOP)/libexif -I$(TOP)/libid3tag -I$(TOP)/libogg/include \
 	-I$(TOP)/libvorbis/include \
 
-
 ifneq ($(STATIC),1)
 LDFLAGS += -L$(TOP)/zlib -L$(TOP)/sqlite/.libs -L$(TOP)/jpeg -L$(TOP)/libvorbis/lib/.libs \
 	-L$(TOP)/libogg/src/.libs -L$(TOP)/libexif/libexif/.libs -L$(TOP)/flac/src/libFLAC/.libs \
@@ -46,15 +45,20 @@ else
 LDFLAGS += -static
 endif
 else
-EXTRACFLAGS = -DLINUX26 -DCONFIG_BCMWL5 -DDEBUG_NOISY -DDEBUG -DDEBUG_RCTEST -pipe -DBCMWPA2 -funit-at-a-time -Wno-pointer-sign -mtune=mips32 -mips32 -DLINUX_KERNEL_VERSION=132630 -DMS_IPK
+ifeq ($(PLATFORM),i686)
+EXTRACFLAGS = -DLINUX26 -DCONFIG_BCMWL5 -pipe -DBCMWPA2 -funit-at-a-time -Wno-pointer-sign \
+-DLINUX_KERNEL_VERSION=132630 -DMS_IPK -DMS_I686
+else
+EXTRACFLAGS = -DLINUX26 -DCONFIG_BCMWL5 -pipe -DBCMWPA2 -funit-at-a-time -Wno-pointer-sign \
+-mtune=mips32 -mips32 -DLINUX_KERNEL_VERSION=132630 -DMS_IPK
+endif
 CFLAGS = -Wall -g -Os -D_GNU_SOURCE $(EXTRACFLAGS) -D_FILE_OFFSET_BITS=64 \
 	-ffunction-sections -fdata-sections \
 	-I$(TOP)/ffmpeg-0.5/libavutil -I$(TOP)/ffmpeg-0.5/libavcodec -I$(TOP)/ffmpeg/libavformat \
 	-I$(TOP)/ffmpeg-0.5/libswscale -I$(TOP)/ffmpeg-0.5 \
 	-I$(TOP)/flac/include -I$(TOP)/sqlite -I$(TOP)/jpeg \
 	-I$(TOP)/libexif -I$(TOP)/libid3tag -I$(TOP)/libogg/include \
-	-I$(TOP)/libvorbis/include \
-	-DMS_IPK
+	-I$(TOP)/libvorbis/include
 
 LDFLAGS += -L$(TOP)/zlib -L$(TOP)/sqlite/.libs -L$(TOP)/jpeg/.libs -L$(TOP)/libvorbis/lib/.libs \
 	-L$(TOP)/libogg/src/.libs -L$(TOP)/libexif/libexif/.libs -L$(TOP)/flac/src/libFLAC/.libs \
@@ -64,12 +68,12 @@ endif
 
 #STATIC_LINKING: CFLAGS += -DSTATIC
 #STATIC_LINKING: LDFLAGS = -static
-#CC = gcc
-ifeq ($(MSIPK),y)
-CC = mipsel-linux-gcc
-endif
 RM = rm -f
 INSTALL = install
+
+ifeq ($(RTCONFIG_BCMARM),y)
+CFLAGS += -I$(SRCBASE)/shared/bcmwifi/include -DTYPEDEF_FLOAT_T
+endif
 
 ifneq ($(MSIPK),y)
 CFLAGS += -I$(TOP)/shared
@@ -85,6 +89,14 @@ endif
 ifeq ($(RTAC66U), y)
 CFLAGS += -DRTN66U
 endif
+
+ifeq ($(MS_LIMIT), 1)
+CFLAGS += -DMS_LIMIT
+endif
+endif
+
+ifeq ($(RPAC68U), y)
+	CFLAGS += -DRPAC68U
 endif
 
 INSTALLPREFIX ?= $(DESTDIR)/usr
@@ -95,10 +107,10 @@ BASEOBJS = minidlna.o upnphttp.o upnpdescgen.o upnpsoap.o \
 	   upnpreplyparse.o minixml.o \
 	   getifaddr.o process.o upnpglobalvars.o \
 	   options.o minissdp.o uuid.o upnpevents.o \
-	   sql.o utils.o metadata.o scanner.o inotify.o \
+	   sql.o utils.o metadata.o scanner.o monitor.o \
 	   tivo_utils.o tivo_beacon.o tivo_commands.o \
 	   containers.o \
-	   tagutils/tagutils.o \
+	   avahi.o tagutils/tagutils.o \
 	   playlist.o image_utils.o albumart.o log.o clients.o
 
 ALLOBJS = $(BASEOBJS) $(LNXOBJS)
@@ -130,6 +142,9 @@ LIBS += -lpthread -lm -lvorbis -logg -lsqlite3 -lexif -ljpeg -lFLAC -lid3tag_ms 
 	$(TOP)/APP-IPK/MediaServer-ipk/asusffmpeg_1.0.0.5/opt/lib/libavformat_asus.so \
 	$(TOP)/APP-IPK/MediaServer-ipk/asusffmpeg_1.0.0.5/opt/lib/libavcodec_asus.so \
 	$(TOP)/APP-IPK/MediaServer-ipk/asusffmpeg_1.0.0.5/opt/lib/libavutil_asus.so
+ifeq ($(PLATFORM),i686)
+LIBS += -lrt
+endif
 endif
 
 TESTUPNPDESCGENOBJS = testupnpdescgen.o upnpdescgen.o

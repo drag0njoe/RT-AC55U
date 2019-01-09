@@ -215,6 +215,11 @@ void recv_msg_userauth_request() {
 #endif
 
 	/* nothing matched, we just fail with a delay */
+#ifdef SECURITY_NOTIFY
+	SEND_PTCSRV_EVENT(PROTECTION_SERVICE_SSH,
+			RPT_FAIL, svr_ses.hoststring,
+			"From dropbear , ACCOUNT FAIL");
+#endif
 	send_msg_userauth_failure(0, 1);
 
 out:

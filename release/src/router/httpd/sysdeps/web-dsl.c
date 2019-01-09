@@ -142,11 +142,13 @@ int wanlink_hook_dsl(int eid, webs_t wp, int argc, char_t **argv){
 	char *ip = "0.0.0.0";
 	char *netmask = "0.0.0.0";
 	char *gateway = "0.0.0.0";
+	char *dns = "";
 	unsigned int lease = 0, expires = 0;
 	char *xtype = "";
 	char *xip = "0.0.0.0";
 	char *xnetmask = "0.0.0.0";
 	char *xgateway = "0.0.0.0";
+	char *xdns = "";
 	unsigned int xlease = 0, xexpires = 0;
 
 	status = 1;
@@ -157,6 +159,7 @@ int wanlink_hook_dsl(int eid, webs_t wp, int argc, char_t **argv){
 		ip = nvram_safe_get(strcat_r(prefix, "ipaddr", tmp));
 		netmask = nvram_safe_get(strcat_r(prefix, "netmask", tmp));
 		gateway = nvram_safe_get(strcat_r(prefix, "gateway", tmp));
+		dns = nvram_safe_get(strcat_r(prefix, "dns", tmp));
 		lease = nvram_get_int(strcat_r(prefix, "lease", tmp));
 		if (lease > 0)
 			expires = nvram_get_int(strcat_r(prefix, "expires", tmp)) - uptime();
@@ -184,6 +187,7 @@ int wanlink_hook_dsl(int eid, webs_t wp, int argc, char_t **argv){
 //		xip = nvram_safe_get(strcat_r(prefix, "xipaddr", tmp));
 //		xnetmask = nvram_safe_get(strcat_r(prefix, "xnetmask", tmp));
 //		xgateway = nvram_safe_get(strcat_r(prefix, "xgateway", tmp));
+//		xdns = nvram_safe_get(strcat_r(prefix, "xdns", tmp));
 //		xlease = nvram_get_int(strcat_r(prefix, "xlease", tmp));
 //		if (xlease > 0)
 //			xexpires = nvram_get_int(strcat_r(prefix, "xexpires", tmp)) - uptime();
@@ -193,7 +197,7 @@ int wanlink_hook_dsl(int eid, webs_t wp, int argc, char_t **argv){
 	websWrite(wp, "function wanlink_xipaddr() { return '%s';}\n", xip);
 	websWrite(wp, "function wanlink_xnetmask() { return '%s';}\n", xnetmask);
 	websWrite(wp, "function wanlink_xgateway() { return '%s';}\n", xgateway);
-	websWrite(wp, "function wanlink_xdns() { return '%s';}\n", nvram_safe_get(strcat_r(prefix, "xdns", tmp)));
+	websWrite(wp, "function wanlink_xdns() { return '%s';}\n", xdns);
 	websWrite(wp, "function wanlink_xlease() { return %d;}\n", xlease);
 	websWrite(wp, "function wanlink_xexpires() { return %d;}\n", xexpires);
 
@@ -365,9 +369,12 @@ int update_dsl_iptv_variables()
 	int unit = 0;
 	char prefix[] = "dslxxx_xxxxxxxx";
 	char tmp[64];
+	int is_dhcp = 0;
 
+	//PVC
+	if(nvram_match("dsltmp_qis_proto", "dhcp") || nvram_match("dsltmp_qis_proto", "mer"))
+		is_dhcp = 1;
 	_dprintf("dsltmp_cfg_iptv_pvclist=%s\n", nvram_safe_get("dsltmp_cfg_iptv_pvclist"));
-
 	nvp = nv = strdup(nvram_safe_get("dsltmp_cfg_iptv_pvclist"));
 	while(nv && (b = strsep(&nvp, "<")) != NULL){
 		if((vstrsep(b, ">", &vpi, &vci, &proto, &encap, &vid) != 5))
@@ -401,6 +408,7 @@ int update_dsl_iptv_variables()
 		}
 		else if(!strcmp(proto, "2")) {
 			nvram_set(strcat_r(prefix, "proto", tmp), "dhcp");
+			is_dhcp = 1;
 		}
 		else if(!strcmp(proto, "3")) {
 			nvram_set(strcat_r(prefix, "proto", tmp), "bridge");
@@ -419,6 +427,7 @@ int update_dsl_iptv_variables()
 	}
 	free(nv);
 
+	//STB port
 	if(unit) {
 		if(nvram_match("switch_stb_x", "1")
 			&& (nvram_get_int("dslx_config_num") > 1)
@@ -455,6 +464,39 @@ int update_dsl_iptv_variables()
 #endif
 			nvram_set("dsltmp_qis_reboot", "1");
 		}
+	}
+
+	//vlan tag
+	_dprintf("dsltmp_cfg_iptv_rmvlan=%s\n", nvram_safe_get("dsltmp_cfg_iptv_rmvlan"));
+	if(nvram_get_int("dsltmp_cfg_iptv_rmvlan") > 0) {
+		nvram_set("dslx_rmvlan", "1");
+	}
+	else {
+		nvram_set("dslx_rmvlan", "0");
+	}
+
+	//muticast route
+	_dprintf("dsltmp_cfg_iptv_mr=%s\n", nvram_safe_get("dsltmp_cfg_iptv_mr"));
+	if(nvram_get_int("dsltmp_cfg_iptv_mr") > 0) {
+		nvram_set("mr_enable_x", "1");
+//TODO: Setting Wireless WMF / igmp snooping, rc service restart_net, wireless
+#if 0
+#ifdef __CONFIG_EMF__
+		nvram_set("emf_enable", "1");
+#endif
+#endif
+		//dhcp route
+		if(is_dhcp) {
+			nvram_set("dr_enable_x", "3");	//option 121 & 249
+		}
+	}
+	else {
+		nvram_set("mr_enable_x", "0");
+#if 0
+#ifdef __CONFIG_EMF__
+		nvram_set("emf_enable", "0");
+#endif
+#endif
 	}
 
 	return 0;

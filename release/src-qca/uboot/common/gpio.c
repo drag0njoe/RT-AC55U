@@ -118,6 +118,37 @@ static const struct gpio_s {
 	[USB_LED] =		{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "USB 2.0 LED" },	/* invalid define */
 	[WAN_BLUE_LED] =	{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "WAN LED" },	/* invalid define */
 	[LAN_LED] =		{ 		7, 1, 0, LED_OFF, 1, "LAN LED" },	/* GPIO7, Low active, output */
+#elif defined(RPAC66)
+	[RST_BTN] =		{ 		2, 1, 1, 0      , 0, "Reset button" },		/* GPIO2, Low active, input  */
+	[WPS_BTN] =		{ 		5, 1, 1, 0      , 0, "WPS button" },		/* GPIO5, Low active, input  */
+	[PWR_LED] =		{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "Power LED" },		/* invalid define */
+	[WPS_LED] =		{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "WPS LED" },		/* invalid define */
+	[WIFI_2G_LED] =		{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "WiFi 2G LED" },		/* invalid define */
+	[WIFI_5G_LED] =		{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "WiFi 5G LED" },		/* invalid define */
+	[USB_LED] =		{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "USB 2.0 LED" },		/* invalid define */
+	[WAN_BLUE_LED] =	{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "WAN LED" },		/* invalid define */
+	[LAN_LED] =		{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "LAN LED" },		/* invalid define */
+	[PWR_GREEN_LED] =	{ 	       6, 0, 0, LED_OFF, 1, "Power Green LED" },	/* GPIO6, High active, output */
+	[PWR_ORANGE_LED] =	{ 	       1, 0, 0, LED_OFF, 1, "Power Orange LED" },	/* GPIO1, High active, output */
+	[WIFI_2G_GREEN_LED] =	{ 	       8, 0, 0, LED_OFF, 1, "WiFi 2G Green LED" },	/* GPIO8, High active, output */
+	[WIFI_2G_BLUE_LED] =	{ 	       7, 0, 0, LED_OFF, 1, "WiFi 2G Blue LED" },	/* GPIO7, High active, output */
+	[WIFI_2G_RED_LED] =	{ 	       9, 0, 0, LED_OFF, 1, "WiFi 2G Red LED" },	/* GPIO9, High active, output */
+	[WIFI_5G_GREEN_LED] =	{ 	        15, 0, 0, LED_OFF, 1, "WiFi 5G Green LED" },	/* GPIO15,  High active, output */
+	[WIFI_5G_BLUE_LED] =	{ 	        14, 0, 0, LED_OFF, 1, "WiFi 5G Blue LED" },	/* GPIO14,  High active, output */
+	[WIFI_5G_RED_LED] =	{ 	        16, 0, 0, LED_OFF, 1, "WiFi 5G Red LED" },	/* GPIO16,  High active, output */
+#elif defined(MAPAC1750)
+	[RST_BTN] =		{ 		2, 1, 1, 0      , 0, "Reset button" },	/* GPIO2, Low active, input  */
+	[WPS_BTN] =		{ 		5, 1, 1, 0      , 0, "WPS button" },	/* GPIO5, Low active, input  */
+	[PWR_LED] =		{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "Power LED" },	/* invalid define */
+	[WPS_LED] =		{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "WPS LED" },	/* invalid define */
+	[WIFI_2G_LED] =		{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "WiFi 2G LED" },	/* invalid define */
+	[WIFI_5G_LED] =		{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "WiFi 5G LED" },	/* invalid define */
+	[WIFI_B_LED] =		{ 	       14, 0, 0, LED_ON , 1, "WiFi Blue LED" },	/* GPIO14, High active, output */
+	[WIFI_G_LED] =		{ 	       15, 0, 0, LED_OFF, 1, "WiFi Green LED" },/* GPIO15, High active, output */
+	[WIFI_R_LED] =		{ 	       16, 0, 0, LED_OFF, 1, "WiFi Red LED" },	/* GPIO16, High active, output */
+	[USB_LED] =		{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "USB 2.0 LED" },	/* invalid define */
+	[WAN_BLUE_LED] =	{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "WAN LED" },	/* invalid define */
+	[LAN_LED] =		{ INVALID_GPIO_NR, 1, 0, LED_OFF, 1, "LAN LED" },	/* invalid define */
 #else
 #error Unknown model
 #endif
@@ -307,9 +338,60 @@ void power_led_off(void)
 	led_onoff(PWR_LED, 0);
 }
 
+
+#if defined(RPAC66)
+void power_orange_led_on(void)
+{
+	leds_off();
+	led_onoff(PWR_ORANGE_LED, 1);
+}
+
+void power_orange_led_off(void)
+{
+	leds_off();
+	led_onoff(PWR_ORANGE_LED, 0);
+}
+#elif defined(MAPAC1750)
+void blue_led_on(void)
+{
+	led_onoff(WIFI_B_LED, LED_ON);
+	led_onoff(WIFI_G_LED, LED_OFF);
+	led_onoff(WIFI_R_LED, LED_OFF);
+}
+
+void green_led_on(void)
+{
+	led_onoff(WIFI_B_LED, LED_OFF);
+	led_onoff(WIFI_G_LED, LED_ON);
+	led_onoff(WIFI_R_LED, LED_OFF);
+}
+
+void red_led_on(void)
+{
+	led_onoff(WIFI_B_LED, LED_OFF);
+	led_onoff(WIFI_G_LED, LED_OFF);
+	led_onoff(WIFI_R_LED, LED_ON);
+}
+
+void purple_led_on(void)
+{
+	led_onoff(WIFI_B_LED, LED_ON);
+	led_onoff(WIFI_G_LED, LED_OFF);
+	led_onoff(WIFI_R_LED, LED_ON);
+}
+#endif
 /* Turn on model-specific LEDs */
 void leds_on(void)
 {
+#if defined(RPAC66)
+	led_onoff(PWR_GREEN_LED, LED_ON);
+	led_onoff(WIFI_2G_GREEN_LED, LED_ON);
+	led_onoff(WIFI_5G_GREEN_LED, LED_ON);
+#elif defined(MAPAC1750)
+	led_onoff(WIFI_B_LED, LED_ON);
+	led_onoff(WIFI_G_LED, LED_ON);
+	led_onoff(WIFI_R_LED, LED_ON);
+#else
 	led_onoff(PWR_LED, 1);
 	led_onoff(WAN_BLUE_LED, 1);
 	led_onoff(LAN_LED, 1);
@@ -319,11 +401,21 @@ void leds_on(void)
 	led_onoff(USB_LED, 0);
 	led_onoff(WIFI_2G_LED, 0);
 	led_onoff(WPS_LED, 0);
+#endif
 }
 
 /* Turn off model-specific LEDs */
 void leds_off(void)
 {
+#if defined(RPAC66)
+	led_onoff(PWR_GREEN_LED, LED_OFF);
+	led_onoff(WIFI_2G_GREEN_LED, LED_OFF);
+	led_onoff(WIFI_5G_GREEN_LED, LED_OFF);
+#elif defined(MAPAC1750)
+	led_onoff(WIFI_B_LED, LED_OFF);
+	led_onoff(WIFI_G_LED, LED_OFF);
+	led_onoff(WIFI_R_LED, LED_OFF);
+#else
 	led_onoff(PWR_LED, 0);
 	led_onoff(WAN_BLUE_LED, 0);
 	led_onoff(LAN_LED, 0);
@@ -332,6 +424,7 @@ void leds_off(void)
 	led_onoff(USB_LED, 0);
 	led_onoff(WIFI_2G_LED, 0);
 	led_onoff(WPS_LED, 0);
+#endif
 }
 
 /* Turn on all model-specific LEDs */

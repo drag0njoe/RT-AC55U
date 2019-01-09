@@ -576,7 +576,9 @@ skip_netloop:
 #endif
 
 #ifdef ASUS_PRODUCT
-#if defined(RESCUE_BLINK_WIFI_LED)
+#if defined(MAPAC1750)
+	purple_led_on();
+#elif defined(RESCUE_BLINK_WIFI_LED)
 	power_led_off();
 #endif
 	i = 1;
@@ -618,13 +620,19 @@ skip_netloop:
 		if (timeHandler && ((get_timer(0) - timeStart) > timeDelta)) {
 			thand_f *x;
 
-#ifdef ASUS_PRODUCT
+#if defined(ASUS_PRODUCT) && !defined(MAPAC1750)
                        /*ASUS*/
                         if (i%2 == 0) {
 				if (ubi_damaged == 1)
 					all_leds_off();
 				else
-#if defined(RESCUE_BLINK_WIFI_LED)
+
+#if defined(RPAC66)
+
+					power_orange_led_off();
+
+#elif defined(RESCUE_BLINK_WIFI_LED)
+
 					wifi_led_off();
 #else
 					power_led_off();
@@ -633,7 +641,9 @@ skip_netloop:
 				if (ubi_damaged == 1)
 					all_leds_on();
 				else
-#if defined(RESCUE_BLINK_WIFI_LED)
+#if defined(RPAC66)
+					power_orange_led_on();
+#elif defined(RESCUE_BLINK_WIFI_LED)
 					wifi_led_on();
 #else
 					power_led_on();
@@ -702,7 +712,11 @@ skip_netloop:
 	}
 leave:
 #if defined(ASUS_PRODUCT)
+#if defined(RPAC66)
+	power_orange_led_on();
+#else
 	power_led_on();
+#endif
 #endif
 	return ret;
 }

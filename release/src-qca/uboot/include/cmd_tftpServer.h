@@ -50,6 +50,9 @@
  */
 extern const unsigned char trx_magic[];
 extern int ubi_damaged;
+#if defined(RPAC66)
+extern int rescue_mode;
+#endif
 
 /* tftpd.c */
 extern int do_tftpd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);

@@ -141,7 +141,7 @@ much traffic. */
 /* Enable CBC mode for ciphers. This has security issues though
  * is the most compatible with older SSH implementations */
 #ifndef DROPBEAR_ENABLE_CBC_MODE
-#define DROPBEAR_ENABLE_CBC_MODE 1
+#define DROPBEAR_ENABLE_CBC_MODE 0
 #endif
 
 /* Enable "Counter Mode" for ciphers. This is more secure than normal
@@ -375,7 +375,7 @@ Homedir is prepended unless path begins with / */
 
 /* Maximum number of failed authentication tries (server option) */
 #ifndef MAX_AUTH_TRIES
-#define MAX_AUTH_TRIES 10
+#define MAX_AUTH_TRIES 3
 #endif
 
 /* The default file to store the daemon's process ID, for shutdown

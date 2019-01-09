@@ -1,11 +1,19 @@
+include $(SRCBASE)/.config
+
+ifeq ($(MESH),y)
+export LINUXDIR := $(SRCBASE)/linux/linux-3.3.x.mesh
+else
 export LINUXDIR := $(SRCBASE)/linux/linux-3.3.x
+endif
 
 ifeq ($(EXTRACFLAGS),)
 export EXTRACFLAGS := -DBCMWPA2 -fno-delete-null-pointer-checks -mips32 -mtune=mips32
 endif
 
+export BUILD := $(shell (gcc -dumpmachine))
 export KERNEL_BINARY=$(LINUXDIR)/vmlinux
 export PLATFORM := mips-uclibc
+export PLATFORM_ARCH := mips-uclibc
 export CROSS_COMPILE := mips-openwrt-linux-uclibc-
 export CROSS_COMPILER := $(CROSS_COMPILE)
 export READELF := mips-openwrt-linux-uclibc-readelf
@@ -30,6 +38,9 @@ EXTRA_CFLAGS := -DLINUX26 -DCONFIG_QCA -pipe -DDEBUG_NOISY -DDEBUG_RCTEST
 export CONFIG_LINUX26=y
 export CONFIG_QCA=y
 
+# related path to platform specific software package
+export PLATFORM_ROUTER := $(if $(MESH),qca95xx.mesh)
+
 EXTRA_CFLAGS += -DLINUX30
 export CONFIG_LINUX30=y
 
@@ -38,6 +49,10 @@ define platformRouterOptions
 	if [ "$(QCA)" = "y" ]; then \
 		sed -i "/RTCONFIG_QCA\>/d" $(1); \
 		echo "RTCONFIG_QCA=y" >>$(1); \
+		sed -i "/RTCONFIG_QCA_ARM/d" $(1); \
+		echo "# RTCONFIG_QCA_ARM is not set" >>$(1); \
+		sed -i "/RTCONFIG_FITFDT/d" $(1); \
+		echo "# RTCONFIG_FITFDT is not set" >>$(1); \
 		if [ "$(QCA953X)" = "y" ]; then \
 			sed -i "/RTCONFIG_QCA953X/d" $(1); \
 			echo "RTCONFIG_QCA953X=y" >>$(1); \
@@ -51,6 +66,13 @@ define platformRouterOptions
 		if [ "$(QCA956X)" = "y" ]; then \
 			sed -i "/RTCONFIG_QCA956X/d" $(1); \
 			echo "RTCONFIG_QCA956X=y" >>$(1); \
+			if [ "$(PLAC56)" = "y" ]; then \
+				sed -i "/RTCONFIG_PCIE_QCA9882/d" $(1); \
+				echo "RTCONFIG_PCIE_QCA9882=y" >>$(1); \
+			elif [ "$(PLAC66U)" = "y" ] || [ "$(RPAC66)" = "y" ] || [ "$(MAPAC1750)" = "y" ]; then \
+				sed -i "/RTCONFIG_PCIE_QCA9880/d" $(1); \
+				echo "RTCONFIG_PCIE_QCA9880=y" >>$(1); \
+			fi; \
 		fi; \
 		if [ "$(PLC_UTILS)" = "y" ]; then \
 			sed -i "/RTCONFIG_QCA_PLC_UTILS/d" $(1); \
@@ -63,6 +85,18 @@ define platformRouterOptions
 		if [ "$(QCA7500)" = "y" ]; then \
 			sed -i "/RTCONFIG_QCA7500/d" $(1); \
 			echo "RTCONFIG_QCA7500=y" >>$(1); \
+		fi; \
+		if [ "$(QCA8033)" = "y" ]; then \
+			sed -i "/RTCONFIG_QCA8033/d" $(1); \
+			echo "RTCONFIG_QCA8033=y" >>$(1); \
+		fi; \
+		if [ "$(ART2)" = "y" ]; then \
+			sed -i "/RTCONFIG_ART2_BUILDIN/d" $(1); \
+			echo "RTCONFIG_ART2_BUILDIN=y" >>$(1); \
+		fi; \
+		if [ "$(QCA_VAP_LOCALMAC)" = "y" ]; then \
+			sed -i "/RTCONFIG_QCA_VAP_LOCALMAC/d" $(1); \
+			echo "RTCONFIG_QCA_VAP_LOCALMAC=y" >>$(1); \
 		fi; \
 	fi; \
 	)
@@ -81,6 +115,10 @@ define platformBusyboxOptions
 		echo "CONFIG_FEATURE_TFTP_GET=y" >>$(1); \
 		sed -i "/CONFIG_FEATURE_TFTP_PUT/d" $(1); \
 		echo "CONFIG_FEATURE_TFTP_PUT=y" >>$(1); \
+		if [ "$(MAPAC1750)" = "y" ]; then \
+			sed -i "/CONFIG_TELNET\b/d" $(1); \
+			echo "CONFIG_TELNET=y" >>$(1); \
+		fi; \
 	fi; \
 	)
 endef
@@ -94,8 +132,6 @@ BOOT_FLASH_TYPE_POOL =	\
 define platformKernelConfig
 	@( \
 	if [ "$(QCA)" = "y" ]; then \
-		sed -i "/CONFIG_RTAC55U/d" $(1); \
-		echo "# CONFIG_RTAC55U is not set" >>$(1); \
 		if [ "$(PLN12)" = "y" ]; then \
 			sed -i "/CONFIG_ATH79_MACH_AP143/d" $(1); \
 			echo "CONFIG_ATH79_MACH_AP143=y" >>$(1); \
@@ -109,15 +145,24 @@ define platformKernelConfig
 			sed -i "/CONFIG_RTAC55U/d" $(1); \
 			echo "CONFIG_RTAC55U=y" >>$(1); \
 		fi; \
-		if [ "$(PLAC56)" = "y" ] || [ "$(PLAC66U)" = "y" ]; then \
+		if [ "$(PLAC56)" = "y" ] || [ "$(PLAC66U)" = "y" ] || [ "$(RPAC66)" = "y" ] || [ "$(MAPAC1750)" = "y" ]; then \
 			sed -i "/CONFIG_ATH79_MACH_AP152/d" $(1); \
 			echo "CONFIG_ATH79_MACH_AP152=y" >>$(1); \
 			if [ "$(PLAC56)" = "y" ]; then \
 				sed -i "/CONFIG_PLAC56/d" $(1); \
 				echo "CONFIG_PLAC56=y" >>$(1); \
-			else \
+			fi; \
+			if [ "$(PLAC66U)" = "y" ]; then \
 				sed -i "/CONFIG_PLAC66U/d" $(1); \
 				echo "CONFIG_PLAC66U=y" >>$(1); \
+			fi; \
+			if [ "$(RPAC66)" = "y" ]; then \
+				sed -i "/CONFIG_RPAC66/d" $(1); \
+				echo "CONFIG_RPAC66=y" >>$(1); \
+			fi; \
+			if [ "$(MAPAC1750)" = "y" ]; then \
+				sed -i "/CONFIG_MAPAC1750/d" $(1); \
+				echo "CONFIG_MAPAC1750=y" >>$(1); \
 			fi; \
 		fi; \
 		if [ "$(CONFIG_LINUX30)" = "y" ]; then \
@@ -132,7 +177,11 @@ define platformKernelConfig
 			sed -i "/CONFIG_MTD_ANY_RALINK/d" $(1); \
 			echo "# CONFIG_MTD_ANY_RALINK is not set" >>$(1); \
 			sed -i "/CONFIG_BRIDGE_EBT_ARPNAT/d" $(1); \
-			echo "# CONFIG_BRIDGE_EBT_ARPNAT is not set" >>$(1); \
+			if [ "$(MAKE_HIVEDOT)" = "y" ] || [ "$(MAKE_HIVESPOT)" = "y" ]; then \
+				echo "# CONFIG_BRIDGE_EBT_ARPNAT=m" >>$(1); \
+			else \
+				echo "# CONFIG_BRIDGE_EBT_ARPNAT is not set" >>$(1); \
+			fi; \
 			sed -i "/CONFIG_NF_CONNTRACK_EVENTS/d" $(1); \
 			echo "CONFIG_NF_CONNTRACK_EVENTS=y" >>$(1); \
 			sed -i "/CONFIG_NF_CONNTRACK_CHAIN_EVENTS/d" $(1); \
@@ -157,6 +206,8 @@ define platformKernelConfig
 			echo "CONFIG_JFFS2_ZLIB=y" >>$(1); \
 			sed -i "/CONFIG_JFFS2_LZO/d" $(1); \
 			echo "# CONFIG_JFFS2_LZO is not set" >>$(1); \
+			sed -i "/CONFIG_JFFS2_LZMA/d" $(1); \
+			echo "# CONFIG_JFFS2_LZMA is not set" >>$(1); \
 			sed -i "/CONFIG_JFFS2_RTIME/d" $(1); \
 			echo "# CONFIG_JFFS2_RTIME is not set" >>$(1); \
 			sed -i "/CONFIG_JFFS2_RUBIN/d" $(1); \
@@ -257,6 +308,86 @@ define platformKernelConfig
 		echo "CONFIG_DUMP_PREV_OOPS_MSG=y" >>$(1); \
 		echo "CONFIG_DUMP_PREV_OOPS_MSG_BUF_ADDR=0x45300000" >>$(1); \
 		echo "CONFIG_DUMP_PREV_OOPS_MSG_BUF_LEN=0x2000" >>$(1); \
+	fi; \
+	if [ "$(BT_CONN)" = "y" ] ; then \
+		sed -i "/CONFIG_BT/d" $(1); \
+		echo "CONFIG_BT=y" >>$(1); \
+		sed -i "/CONFIG_BT_HCIBTUSB/d" $(1); \
+		echo "CONFIG_BT_HCIBTUSB=m" >>$(1); \
+		sed -i "/CONFIG_BT_RFCOMM/d" $(1); \
+		echo "CONFIG_BT_RFCOMM=y" >>$(1); \
+		sed -i "/CONFIG_BT_RFCOMM_TTY/d" $(1); \
+		echo "CONFIG_BT_RFCOMM_TTY=y" >>$(1); \
+		sed -i "/CONFIG_BT_BNEP/d" $(1); \
+		echo "CONFIG_BT_BNEP=y" >>$(1); \
+		sed -i "/CONFIG_BT_BNEP_MC_FILTER/d" $(1); \
+		echo "CONFIG_BT_BNEP_MC_FILTER=y" >>$(1); \
+		sed -i "/CONFIG_BT_BNEP_PROTO_FILTER/d" $(1); \
+		echo "CONFIG_BT_BNEP_PROTO_FILTER=y" >>$(1); \
+		sed -i "/CONFIG_BT_HIDP/d" $(1); \
+		echo "# CONFIG_BT_HIDP is not set" >>$(1); \
+		sed -i "/CONFIG_BT_HCIUART/d" $(1); \
+		echo "# CONFIG_BT_HCIUART is not set" >>$(1); \
+		echo "# CONFIG_BT_HCIUART_H4 is not set" >>$(1); \
+		sed -i "/CONFIG_BT_HCIUART_BCSP/d" $(1); \
+		echo "# CONFIG_BT_HCIUART_BCSP is not set" >>$(1); \
+		sed -i "/CONFIG_BT_HCIBCM203X/d" $(1); \
+		echo "# CONFIG_BT_HCIBCM203X is not set" >>$(1); \
+		sed -i "/CONFIG_BT_HCIBPA10X/d" $(1); \
+		echo "# CONFIG_BT_HCIBPA10X is not set" >>$(1); \
+		sed -i "/CONFIG_BT_HCIBFUSB/d" $(1); \
+		echo "# CONFIG_BT_HCIBFUSB is not set" >>$(1); \
+		sed -i "/CONFIG_BT_HCIUART_ATH3K/d" $(1); \
+		echo "# CONFIG_BT_HCIUART_ATH3K is not set" >>$(1); \
+		sed -i "/CONFIG_BT_ATH3K/d" $(1); \
+		echo "CONFIG_BT_ATH3K=m" >>$(1); \
+		echo "# CONFIG_BT_HCIUART_LL is not set" >>$(1); \
+		echo "# CONFIG_BT_HCIUART_3WIRE is not set" >>$(1); \
+		sed -i "/CONFIG_BT_HCIVHCI/d" $(1); \
+		echo "CONFIG_BT_HCIVHCI=y" >>$(1); \
+		echo "# CONFIG_BT_MRVL is not set" >>$(1); \
+		echo "# CONFIG_BTRFS_FS is not set" >>$(1); \
+	fi; \
+	if [ "$(NO_USBSTORAGE)" = "y" ] ; then \
+		sed -i "/CONFIG_SCSI/d" $(1); \
+		echo "# CONFIG_SCSI is not set" >>$(1); \
+		sed -i "/CONFIG_EXT2_FS/d" $(1); \
+		echo "# CONFIG_EXT2_FS is not set" >>$(1); \
+		sed -i "/CONFIG_EXT3_FS/d" $(1); \
+		echo "# CONFIG_EXT3_FS is not set" >>$(1); \
+		sed -i "/CONFIG_REISERFS_FS/d" $(1); \
+		echo "# CONFIG_REISERFS_FS is not set" >>$(1); \
+		sed -i "/CONFIG_XFS_FS/d" $(1); \
+		echo "# CONFIG_XFS_FS is not set" >>$(1); \
+		sed -i "/CONFIG_FUSE_FS/d" $(1); \
+		echo "# CONFIG_FUSE_FS is not set" >>$(1); \
+		sed -i "/CONFIG_FAT_FS/d" $(1); \
+		echo "# CONFIG_FAT_FS is not set" >>$(1); \
+		sed -i "/CONFIG_VFAT_FS/d" $(1); \
+		echo "# CONFIG_VFAT_FS is not set" >>$(1); \
+		sed -i "/CONFIG_CONFIGFS_FS/d" $(1); \
+		echo "# CONFIG_CONFIGFS_FS is not set" >>$(1); \
+		sed -i "/CONFIG_NLS_CODEPAGE_437/d" $(1); \
+		echo "# CONFIG_NLS_CODEPAGE_437 is not set" >>$(1); \
+		sed -i "/CONFIG_NLS_CODEPAGE_850/d" $(1); \
+		echo "# CONFIG_NLS_CODEPAGE_850 is not set" >>$(1); \
+		sed -i "/CONFIG_NLS_CODEPAGE_852/d" $(1); \
+		echo "# CONFIG_NLS_CODEPAGE_852 is not set" >>$(1); \
+		sed -i "/CONFIG_NLS_CODEPAGE_866/d" $(1); \
+		echo "# CONFIG_NLS_CODEPAGE_866 is not set" >>$(1); \
+		sed -i "/CONFIG_NLS_CODEPAGE_936/d" $(1); \
+		echo "# CONFIG_NLS_CODEPAGE_936 is not set" >>$(1); \
+		sed -i "/CONFIG_NLS_CODEPAGE_950/d" $(1); \
+		echo "# CONFIG_NLS_CODEPAGE_950 is not set" >>$(1); \
+		sed -i "/CONFIG_NLS_CODEPAGE_932/d" $(1); \
+		echo "# CONFIG_NLS_CODEPAGE_932 is not set" >>$(1); \
+		sed -i "/CONFIG_NLS_CODEPAGE_949/d" $(1); \
+		echo "# CONFIG_NLS_CODEPAGE_949 is not set" >>$(1); \
+		sed -i "/CONFIG_NLS_ISO8859_1/d" $(1); \
+		echo "# CONFIG_NLS_ISO8859_1 is not set" >>$(1); \
+		echo "# CONFIG_NLS_ISO8859_13 is not set" >>$(1); \
+		echo "# CONFIG_NLS_ISO8859_14 is not set" >>$(1); \
+		echo "# CONFIG_NLS_ISO8859_15 is not set" >>$(1); \
 	fi; \
 	)
 endef

@@ -40,9 +40,6 @@
 #include "auth.h"
 #include "runopts.h"
 #include "crypto_desc.h"
-#ifdef RTCONFIG_PROTECTION_SERVER
-#include <libptcsrv.h>
-#endif
 
 static void svr_remoteclosed(void);
 
@@ -86,6 +83,9 @@ svr_session_cleanup(void) {
 	svr_pubkey_options_cleanup();
 
 	m_free(svr_ses.addrstring);
+#ifdef SECURITY_NOTIFY
+	m_free(svr_ses.hoststring);
+#endif
 	m_free(svr_ses.remotehost);
 	m_free(svr_ses.childpids);
 	svr_ses.childpidsize = 0;
@@ -111,7 +111,11 @@ void svr_session(int sock, int childpipe) {
 	len = strlen(host) + strlen(port) + 2;
 	svr_ses.addrstring = m_malloc(len);
 	snprintf(svr_ses.addrstring, len, "%s:%s", host, port);
+#ifdef SECURITY_NOTIFY
+	svr_ses.hoststring = host;
+#else
 	m_free(host);
+#endif
 	m_free(port);
 
 	get_socket_address(ses.sock_in, NULL, NULL, 
@@ -172,15 +176,6 @@ void svr_dropbear_exit(int exitcode, const char* format, va_list param) {
 		/* before userauth */
 		snprintf(fullmsg, sizeof(fullmsg), "Exit before auth: %s", exitmsg);
 	}
-
-#ifdef RTCONFIG_PROTECTION_SERVER
-		char ip[64];
-		char *addr;
-		strncpy(ip, svr_ses.addrstring, sizeof(ip));
-		addr = strrchr(ip, ':');
-		*addr = '\0';
-		SEND_PTCSRV_EVENT(PROTECTION_SERVICE_SSH, ip, "From dropbear , LOGIN FAIL");
-#endif
 
 	dropbear_log(LOG_INFO, "%s", fullmsg);
 

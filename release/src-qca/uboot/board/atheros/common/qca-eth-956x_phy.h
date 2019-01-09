@@ -22,7 +22,7 @@
 #include <miiphy.h>
 
 
-#ifdef CONFIG_ATHR_8033_PHY
+#if defined(CONFIG_ATHR_8033_PHY)||defined(CONFIG_AP152_AR8033)
 extern int athrs_ar8033_reg_init(void *arg);
 extern int athrs_ar8033_phy_setup(void  *arg);
 extern int athrs_ar8033_phy_is_fdx(int ethUnit);
@@ -85,6 +85,11 @@ static inline void ath_gmac_phy_link(int unit, int *link)
 			*link = athrs17_phy_is_up(unit);
 		} else
 #endif
+#ifdef CONFIG_AP152_AR8033
+		if (unit == 0) {
+			*link = athrs_ar8033_phy_is_up(unit);
+		} else
+#endif
 		{
 #ifdef CFG_ATHRS26_PHY
          		*link = athrs26_phy_is_up(unit);
@@ -113,6 +118,11 @@ static inline void ath_gmac_phy_duplex(int unit, int *duplex)
 			*duplex = athrs17_phy_is_fdx(unit);
 		} else
 #endif
+#ifdef CONFIG_AP152_AR8033
+		if (unit == 0) {
+			*duplex = athrs_ar8033_phy_is_fdx(unit);
+		} else
+#endif
 		{
 #ifdef CFG_ATHRS26_PHY
 			*duplex = athrs26_phy_is_fdx(unit);
@@ -138,6 +148,11 @@ static inline void ath_gmac_phy_speed(int unit, int *speed)
 #ifdef CONFIG_ATHRS17_PHY
 		if (unit == 0) {
 			*speed = _1000BASET;
+		} else
+#endif
+#ifdef CONFIG_AP152_AR8033
+		if (unit == 0) {
+			*speed = athrs_ar8033_phy_speed(unit, ATH_AR8033_PHY_ID);
 		} else
 #endif
 		{

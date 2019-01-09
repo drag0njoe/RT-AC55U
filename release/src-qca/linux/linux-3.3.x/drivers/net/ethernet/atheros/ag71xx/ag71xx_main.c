@@ -13,6 +13,7 @@
  */
 
 #include "ag71xx.h"
+#include <linux/proc_fs.h>
 #include "athrs_ioctl.h"
 #ifdef CONFIG_OF
 #include <linux/of.h>
@@ -23,6 +24,7 @@
 #define UNUSED(__x)	(void)(__x)
 #endif
 
+char link_status[100];
 static int ag71xx_gmac_num = 0;
 
 #define AG71XX_DEFAULT_MSG_ENABLE	\
@@ -651,8 +653,10 @@ void ag71xx_link_adjust(struct ag71xx *ag)
 	if (!ag->link) {
 		ag71xx_hw_stop(ag);
 		netif_carrier_off(ag->dev);
-		if (netif_msg_link(ag))
+		if (netif_msg_link(ag)) {
 			pr_info("%s: link down\n", ag->dev->name);
+			sprintf(link_status, "%s: link down\n", ag->dev->name);
+		}
 		return;
 	}
 
@@ -706,11 +710,13 @@ void ag71xx_link_adjust(struct ag71xx *ag)
 
 	ag71xx_hw_start(ag);
 	netif_carrier_on(ag->dev);
-	if (netif_msg_link(ag))
+	if (netif_msg_link(ag)) {
 		pr_info("%s: link up (%sMbps/%s duplex)\n",
 			ag->dev->name,
 			ag71xx_speed_str(ag),
 			(DUPLEX_FULL == ag->duplex) ? "Full" : "Half");
+		sprintf(link_status, "%s: link up (%sMbps/%s duplex)\n", ag->dev->name, ag71xx_speed_str(ag), (DUPLEX_FULL == ag->duplex) ? "Full" : "Half");
+	}
 
 	DBG("%s: fifo_cfg0=%#x, fifo_cfg1=%#x, fifo_cfg2=%#x\n",
 		ag->dev->name,
@@ -1661,6 +1667,9 @@ static int __devinit ag71xx_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dev);
 
+	/* Init link_status value */
+	sprintf(link_status, "%s: link down\n", ag->dev->name);
+
 	return 0;
 
 err_phy_disconnect:
@@ -1718,6 +1727,22 @@ static struct platform_driver ag71xx_driver = {
 	}
 };
 
+static int link_status_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%s", link_status);
+	return 0;
+}
+static int link_status_proc_open(struct inode *inode, struct file *file)
+{
+        return single_open(file, link_status_proc_show, NULL);
+}
+static const struct file_operations link_status_proc_fops = {
+        .open           = link_status_proc_open,
+        .read           = seq_read,
+        .llseek         = seq_lseek,
+        .release        = single_release,
+};
+
 static int __init ag71xx_module_init(void)
 {
 	int ret;
@@ -1733,6 +1758,8 @@ static int __init ag71xx_module_init(void)
 	ret = platform_driver_register(&ag71xx_driver);
 	if (ret)
 		goto err_mdio_exit;
+
+	proc_create("link_status", 0, NULL, &link_status_proc_fops);
 
 	return 0;
 

@@ -5,6 +5,8 @@
 
 */
 
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "rc.h"
 
 static inline int check_host_key(const char *ktype, const char *nvname, const char *hkfn)

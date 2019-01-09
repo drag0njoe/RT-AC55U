@@ -1,15 +1,28 @@
 #!/bin/sh
+# environment variable: unit - modem unit.
 # echo "This is a script to find the modem act TTY nodes out."
 
 
-modem_act_path=`nvram get usb_modem_act_path`
-modem_type=`nvram get usb_modem_act_type`
-modem_vid=`nvram get usb_modem_act_vid`
-modem_pid=`nvram get usb_modem_act_pid`
+if [ -z "$unit" ] || [ "$unit" -eq "0" ]; then
+	prefix="usb_modem_"
+else
+	prefix="usb_modem${unit}_"
+fi
+echo "find_modem_node: prefix=$prefix."
+
+modem_act_path=`nvram get ${prefix}act_path`
+modem_type=`nvram get ${prefix}act_type`
+modem_vid=`nvram get ${prefix}act_vid`
+modem_pid=`nvram get ${prefix}act_pid`
 usb_gobi2=`nvram get usb_gobi2`
 dev_home=/dev
 
-at_lock="flock -x /tmp/at_cmd_lock"
+stop_lock=`nvram get stop_atlock`
+if [ -n "$stop_lock" ] && [ "$stop_lock" -eq "1" ]; then
+	at_lock=""
+else
+	at_lock="flock -x /tmp/at_cmd_lock"
+fi
 
 
 _find_act_devs(){
@@ -225,12 +238,22 @@ _get_gobi_device(){
 		return
 	fi
 
-	if [ "$1" == "1478" ] && [ "$2" == "36902" -o "$2" == "36903" ]; then
+	if [ "$1" == "1478" ] && [ "$2" == "36901" -o "$2" == "36902" -o "$2" == "36903" ]; then
 		echo "1"
 		return
 	fi
 
 	echo "0"
+}
+
+_is_ET128(){
+	ret="0"
+
+	if [ "$modem_vid" == "4817" -a "$modem_pid" == "7433" ]; then
+		ret="1"
+	fi
+
+	echo -n "$ret"
 }
 
 
@@ -242,7 +265,16 @@ echo "io_devs=$io_devs."
 
 is_gobi=`_get_gobi_device $modem_vid $modem_pid`
 
-if [ "$modem_type" == "tty" ] && [ "$modem_vid" == "6610" -o "$modem_vid" == "1032" ]; then # e.q. ZTE MF637U, ROYAL Q110.
+
+et128=`_is_ET128`
+if [ "$et128" == "1" ]; then
+	first_int_dev="ttyACM0"
+	echo "first_int_dev=$first_int_dev."
+
+	first_bulk_dev=""
+	echo "first_bulk_dev=$first_bulk_dev."
+elif [ "$modem_type" == "tty" ] && [ "$modem_vid" == "6610" -o "$modem_vid" == "1032" -o "$modem_vid" == "6797" ]; then
+	# e.q. ZTE MF637U, ROYAL Q110, Bandluxe C120.
 	first_int_dev=`_find_first_int_dev "$io_devs"`
 	echo "first_int_dev=$first_int_dev."
 
@@ -271,6 +303,6 @@ else
 	echo "first_bulk_dev=$first_bulk_dev."
 fi
 
-nvram set usb_modem_act_int=$first_int_dev
-nvram set usb_modem_act_bulk=$first_bulk_dev
+nvram set ${prefix}act_int=$first_int_dev
+nvram set ${prefix}act_bulk=$first_bulk_dev
 

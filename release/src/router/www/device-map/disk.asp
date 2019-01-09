@@ -31,7 +31,7 @@ a:active {
 <script type="text/javascript" src="/js/jquery.js"></script>
 <script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
 <script>
-if(parent.location.pathname.search("index") === -1) top.location.href = "../index.asp";
+if(parent.location.pathname.search("index") === -1) top.location.href = "../"+'<% networkmap_page(); %>';
 
 var diskOrder = parent.getSelectedDiskOrder();
 
@@ -40,18 +40,11 @@ var diskOrder = parent.getSelectedDiskOrder();
 var apps_array = <% apps_info("asus"); %>;
 
 function initial(){
-	document.getElementById("t0").className = "tabclick_NW";
-	document.getElementById("t1").className = "tab_NW";
 	flash_button();
 
 	if(!parent.media_support)
 		document.getElementById("mediaserver_hyperlink").style.display = "none";
 	
-	// Hide disk utility temporarily.
-	if(parent.diskUtility_support){
-		document.getElementById("diskTab").style.display = "";
-	}
-
 	showDiskUsage(parent.usbPorts[diskOrder-1]);
 
 	if(sw_mode == "2" || sw_mode == "3" || sw_mode == "4")
@@ -59,10 +52,36 @@ function initial(){
 		
 	if(noaidisk_support)
 		document.getElementById("aidisk_hyperlink").style.display = "none";
-	
-	if((based_modelid == "RT-AC87U" || based_modelid == "RT-AC5300" || based_modelid == "RT-AC88U" || based_modelid == "RT-AC3100" || based_modelid == "RT-AC58U" || based_modelid == "RT-AC82U" ) && parent.currentUsbPort == 0){
+
+	if((based_modelid == "DSL-AC68U" || based_modelid == "RT-AC3200" || based_modelid == "RT-AC87U" || based_modelid == "RT-AC68U" || based_modelid == "RT-AC68A" || based_modelid == "RT-AC56S" || based_modelid == "RT-AC56U" || based_modelid == "RT-AC55U" || based_modelid == "RT-AC55UHP" || based_modelid == "RT-N18U" || based_modelid == "RT-AC88U" || based_modelid == "RT-AC86U" || based_modelid == "AC2900" || based_modelid == "RT-AC3100" || based_modelid == "RT-AC5300" || based_modelid == "RP-AC68U" || based_modelid == "RT-AC58U" || based_modelid == "RT-AC82U" || based_modelid == "MAP-AC3000" || based_modelid == "RT-AC85U" || based_modelid == "RT-AC65U"|| based_modelid == "4G-AC68U" || based_modelid == "BLUECAVE") && parent.currentUsbPort == 0){
 		document.getElementById('reduce_usb3_table').style.display = "";
-	}		
+	}
+	else if((based_modelid == "RT-AC88Q" || based_modelid == "RT-AD7200" || based_modelid == "RT-N65U" || based_modelid == "GT-AC5300" || based_modelid == "GT-AC9600" || based_modelid == "BRT-AC828") && (parent.currentUsbPort == 0 || parent.currentUsbPort == 1)){
+		document.getElementById('reduce_usb3_table').style.display = "";
+	}
+
+	var disk_list_array = new Array();
+	var usb_fatfs_mod = '<% nvram_get("usb_fatfs_mod"); %>';
+	var usb_ntfs_mod = '<% nvram_get("usb_ntfs_mod"); %>';
+	var usb_hfs_mod = '<% nvram_get("usb_hfs_mod"); %>';
+
+	disk_list_array = { "info" : ["<#diskUtility_information#>", "disk.asp"], "health" : ["<#diskUtility#>", "disk_utility.asp"], "format" : ["<#CTL_format#>", "disk_format.asp"]};
+	if(!parent.diskUtility_support) {
+		delete disk_list_array.health;
+		delete disk_list_array.format;
+	}
+	if(usb_fatfs_mod != "tuxera" && usb_ntfs_mod != "tuxera" && usb_hfs_mod != "tuxera") {
+		delete disk_list_array.format;
+	}
+	$('#diskTab').html(parent.gen_tab_menu(disk_list_array, "info"));
+
+	//short term solution for brt-ac828
+	if(based_modelid == "BRT-AC828") {
+		document.getElementById("mediaserver_hyperlink").style.display = "none";
+		document.getElementById("aidisk_hyperlink").style.display = "none";
+	}
+
+	reset_NM_height();
 }
 
 var thisForeignDisksIndex;
@@ -114,33 +133,20 @@ function gotoDM(){
 function remove_disk_call(){
 	top.remove_disk(thisForeignDisksIndex)
 }
+
+function switchUSBType(){
+	document.form.submit();
+}
 </script>
 </head>
 
 <body class="statusbody" onload="initial();">
-<table>
-	<tr>
-	<td>		
-		<table id="diskTab" width="100px" border="0" align="left" style="margin-left:5px;display:none;" cellpadding="0" cellspacing="0">
-  		<td>
-				<div id="t0" class="tabclick_NW" align="center" style="font-weight: bolder;margin-right:2px;" onclick="">
-					<span id="span1" style="cursor:pointer;font-weight: bolder;"><#diskUtility_information#></span>
-				</div>
-			</td>
-  		<td>
-				<div id="t1" class="tab_NW" align="center" style="font-weight: bolder;margin-right:2px;" onclick="location.href='disk_utility.asp'">
-					<span id="span1" style="cursor:pointer;font-weight: bolder;"><#diskUtility#></span>
-				</div>
-			</td>
-		</table>
-	</td>
-</tr>
-</table>
-<table width="95%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="table1px" style="margin-top:-3px;">
+<div id="diskTab" class='tab_table'></div>
+<table width="95%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="table1px">
 	<tr>
     <td style="padding:5px 10px 0px 15px;">
     	<p class="formfonttitle_nwm"><#Modelname#>:</p>
-			<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px; color:#FFFFFF;" id="disk_model_name"></p>
+			<p class="tab_info_bg" style="padding-left:10px; margin-top:3px;line-height:20px; color:#FFFFFF;" id="disk_model_name"></p>
       <img style="margin-top:5px;" src="/images/New_ui/networkmap/linetwo2.png">
     </td>
   </tr>
@@ -150,7 +156,7 @@ function remove_disk_call(){
   <tr>
     <td style="padding:5px 10px 0px 15px;">
     	<p class="formfonttitle_nwm"><#Availablespace#>:</p>
-    	<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px; color:#FFFFFF;" id="disk_avail_size"></p>
+    	<p class="tab_info_bg" style="padding-left:10px; margin-top:3px;line-height:20px; color:#FFFFFF;" id="disk_avail_size"></p>
       <img style="margin-top:5px;" src="/images/New_ui/networkmap/linetwo2.png">
     </td>
   </tr>
@@ -158,7 +164,7 @@ function remove_disk_call(){
   <tr>
     <td style="padding:5px 10px 0px 15px;">
     	<p class="formfonttitle_nwm"><#Totalspace#>:</p>
-    	<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px; color:#FFFFFF;" id="disk_total_size"></p>
+    	<p class="tab_info_bg" style="padding-left:10px; margin-top:3px;line-height:20px; color:#FFFFFF;" id="disk_total_size"></p>
       <img style="margin-top:5px;" src="/images/New_ui/networkmap/linetwo2.png">
     </td>
   </tr>
@@ -202,32 +208,29 @@ function remove_disk_call(){
 <table width="95%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="table1px" id="reduce_usb3_table" style="display:none">
 	<tr>
 		<td height="50" style="padding:10px 15px 0px 15px;">
-			<p class="formfonttitle_nwm" style="float:left;width:138px; " onmouseover="parent.overHint(24);" onmouseout="parent.nd();"><#WLANConfig11b_x_ReduceUSB3#></p>
+			<p class="formfonttitle_nwm" style="float:left;width:138px; " onmouseover="parent.overHint(24);" onmouseout="parent.nd();">USB Mode</p>
 			<form method="post" name="form" action="/start_apply.htm" target="hidden_frame">
-				<input type="hidden" name="current_page" value="/index.asp">
-				<input type="hidden" name="next_page" value="/index.asp">
+				<input type="hidden" name="current_page" value="<% abs_index_page(); %>">
+				<input type="hidden" name="next_page" value="<% abs_index_page(); %>">
 				<input type="hidden" name="productid" value="<% nvram_get("productid"); %>">
 				<input type="hidden" name="action_mode" value="apply">
 				<input type="hidden" name="action_script" value="reboot">
 				<input type="hidden" name="action_wait" value="<% get_default_reboot_time(); %>">
 				<input type="hidden" name="preferred_lang" id="preferred_lang" value="<% nvram_get("preferred_lang"); %>">
-				<input type="hidden" name="usb_usb3" value="<% nvram_get("usb_usb3"); %>">
-			
-			<div align="center" class="left" style="width:120px; float:left; cursor:pointer;margin-top:-7px;" id="reduce_usb3_enable"></div>
-			<script type="text/javascript">
-				var flag = document.form.usb_usb3.value == 1 ?  0: 1;
-				$('#reduce_usb3_enable').iphoneSwitch( flag,
-					function(){		//ON:0
-						document.form.usb_usb3.value = 0;
-						document.form.submit();
-					},
-					function(){		//OFF:1
-						document.form.usb_usb3.value = 1;
-						document.form.submit();
-					}
-				);
-			</script>
+				<div align="center" class="left" style="width:120px; float:left; cursor:pointer;margin-top:-7px;" id="reduce_usb3_enable">
+					<select class="input_option" name="usb_usb3" >
+						<option value="0" <% nvram_match("usb_usb3", "0", "selected"); %>>USB 2.0</option>
+						<option value="1" <% nvram_match("usb_usb3", "1", "selected"); %>>USB 3.0</option>
+					</select>
+				</div>
 			</form>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<div class="apply_gen">
+				<input class="button_gen" onclick="switchUSBType();" type="button" value="Apply">
+			</div>
 		</td>
 	</tr>
 </table>

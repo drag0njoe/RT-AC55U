@@ -43,7 +43,7 @@ function openAudioPlayer(loc){
 	
 	var audio_array = new Array();
 	for(var i=0;i<g_file_array.length;i++){
-   		var file_ext = getFileExt(g_file_array[i].href);
+   		var file_ext = getFileExt(g_file_array[i].furl);
 		if(file_ext=="mp3")
    			audio_array.push(g_file_array[i]);
 	}
@@ -58,7 +58,7 @@ function openAudioPlayer(loc){
 	var audio_list = "";
 	var default_index = 0;
 	for(var i=0;i<audio_array.length;i++){
-		var the_loc = audio_array[i].href;		
+		var the_loc = audio_array[i].furl;		
 	 	if( loc == the_loc )
 	 		default_index = i;
 	   			
@@ -82,7 +82,7 @@ function openImageViewer(loc){
 	
 	var image_array = new Array();
 	for(var i=0;i<g_file_array.length;i++){
-   	var file_ext = getFileExt(g_file_array[i].href);			
+   	var file_ext = getFileExt(g_file_array[i].furl);			
 		if(file_ext=="jpg"||file_ext=="jpeg"||file_ext=="png"||file_ext=="gif")
    			image_array.push(g_file_array[i]);
 	}
@@ -96,7 +96,7 @@ function openImageViewer(loc){
 	
 	var default_index = 0;
 	for(var i=0;i<image_array.length;i++){
-   		if( loc == image_array[i].href )
+   		if( loc == image_array[i].furl )
    			default_index = i;
   	}
 		
@@ -108,7 +108,7 @@ function openImageViewer(loc){
 	
 	for(var i=0;i<image_array.length;i++){
 				
-   		var img_url = image_array[i].href;
+   		var img_url = image_array[i].furl;
     	
    		if(i==default_index)
    			div_html += '<img src="" path="' + img_url + '" alt="" class="default"/>';
@@ -176,72 +176,52 @@ function openSelItem(item){
 	var isdir = item.attr("isdir");
 	var isusb = item.attr("isusb");
 	var this_full_url = item.attr("uhref");
-	var this_play_full_url = item.attr("playhref");
+	//var this_play_full_url = item.attr("playhref");
 	var this_file_name = item.attr("title");
 	//alert(this_full_url);
 	var fileExt = getFileExt(loc);
 	
-	if( fileExt=="mp4" ||
-		  fileExt=="m4v" ||
-		  fileExt=="wmv" ||
-		  fileExt=="avi" ||
-		  fileExt=="rmvb"||
-		  fileExt=="rm"  ||
-		  fileExt=="mpg" ||
-		  fileExt=="mpeg"||
-		  fileExt=="mkv" ||
-		  fileExt=="mov" ||
-		  fileExt=="flv" ) {
-		    
-		if( isWinOS() ){
-			if( isBrowser("msie") && 
-				getInternetExplorerVersion() <= 7 ){
-				//- The VLC Plugin doesn't support IE 7 or less
-				alert(m.getString('msg_vlcsupport'));
-			}
-			else{
-				var $modalWindow = $("div#modalWindow");
-					
-				var media_hostName = window.location.host;					
-				if(media_hostName.indexOf(":")!=-1){
-					media_hostName = media_hostName.substring(0, media_hostName.indexOf(":"));
-				}
-				media_hostName = "http://" + media_hostName + ":" + g_storage.get('slhp');
+	if( fileExt=="mp4" ) {
+		
+		if(isBrowser("msie") && getInternetExplorerVersion() <= 8){
+			window.open(loc);
+			return;
+		}
+
+		var $modalWindow = $("div#modalWindow");
+		
+		open_url = '/smb/css/vlc_video.html?v=' + this_full_url;
+		open_url += '&showbutton=1';
 				
-				open_url = '/smb/css/vlc_video.html?v=' + media_hostName + this_full_url;							
-				open_url += '&showbutton=1';
-				
-				//- subtitle
-				var array_srt_files = new Array();				
-				for(var i=0;i<g_file_array.length;i++){
-					var file_ext = getFileExt(g_file_array[i].href);
-					if(file_ext=="srt"){
-						array_srt_files.push(g_file_array[i].href);
-					}
-				}
-				
-				if(array_srt_files.length>0){
-					open_url += '&s=';
-					for(var i=0;i<array_srt_files.length;i++){
-						open_url += array_srt_files[i];
-						if(i!=array_srt_files.length-1) open_url += ";";
-					}
-				}
-				array_srt_files=null;
-				
-				//alert(open_url);
-				
-				g_modal_url = open_url;
-				g_modal_window_width = 655;
-				g_modal_window_height = 580;
-				$('#jqmMsg').css("display", "none");
-				$('#jqmTitleText').text(m.getString('title_videoplayer'));
-				if($modalWindow){
-					$modalWindow.jqmShow();
-				}
-				return;
+		//- subtitle
+		var array_srt_files = new Array();				
+		for(var i=0;i<g_file_array.length;i++){
+			var file_ext = getFileExt(g_file_array[i].furl);
+			if(file_ext=="srt"){
+				array_srt_files.push(g_file_array[i].furl);
 			}
 		}
+				
+		if(array_srt_files.length>0){
+			open_url += '&s=';
+			for(var i=0;i<array_srt_files.length;i++){
+				open_url += array_srt_files[i];
+				if(i!=array_srt_files.length-1) open_url += ";";
+			}
+		}
+		array_srt_files=null;
+				
+		//alert(open_url);
+				
+		g_modal_url = open_url;
+		g_modal_window_width = 655;
+		g_modal_window_height = 580;
+		$('#jqmMsg').css("display", "none");
+		$('#jqmTitleText').text(m.getString('title_videoplayer'));
+		if($modalWindow){
+			$modalWindow.jqmShow();
+		}
+		return;
 	}
 	
 	if( fileExt=="mp3" ) {		
@@ -341,7 +321,7 @@ function createThumbView(query_type, parent_url, folder_array, file_array){
 			html += '0';
 								
 		html += '" uhref="';
-		html += folder_array[i].href;
+		html += folder_array[i].furl;
 		html += '">';
 		
 		if(query_type == "2"){
@@ -373,7 +353,7 @@ function createThumbView(query_type, parent_url, folder_array, file_array){
 		html += '<a id="list_item" qtype="';
 		html += query_type;
 		html += '" isdir="1" uhref="';
-		html += folder_array[i].href;
+		html += folder_array[i].furl;
 		html += '" title="';
 		html += folder_array[i].name;
 		html += '" online="';
@@ -414,7 +394,7 @@ function createThumbView(query_type, parent_url, folder_array, file_array){
 		
 		/*
 		if(folder_array[i].type == "usbdisk"&&query_type==1){	
-			//alert(folder_array[i].name+","+folder_array[i].href+","+query_type);
+			//alert(folder_array[i].name+","+folder_array[i].furl+","+query_type);
 			
 			client.GETDISKSPACE("/", folder_array[i].name, function(error, statusstring, content){				
 				if(error==200){
@@ -449,7 +429,7 @@ function createThumbView(query_type, parent_url, folder_array, file_array){
 		html += '<tbody>';									
 									
 		//- get file ext
-		var file_path = String(file_array[i].href);
+		var file_path = String(file_array[i].furl);
 		var file_ext = getFileExt(file_path);
 		if(file_ext.length>5)file_ext="";
 																
@@ -458,7 +438,7 @@ function createThumbView(query_type, parent_url, folder_array, file_array){
 			html += '<div class="picDiv" popupmenu="1" uhref="';
 		else
 			html += '<div class="picDiv" popupmenu="0" uhref="';
-		html += file_array[i].href;
+		html += file_array[i].furl;
 		html += '">';
 		
 		if(file_ext=="jpg"||file_ext=="jpeg"||file_ext=="png"||file_ext=="gif"||file_ext=="bmp")
@@ -488,7 +468,7 @@ function createThumbView(query_type, parent_url, folder_array, file_array){
 		html += '<tr><td>';
 		html += '<div class="albuminfo" style="font-size:80%">';
 		html += '<a id="list_item" qtype="1" isdir="0" uhref="';
-		html += file_array[i].href;
+		html += file_array[i].furl;
 		html += '" title="';
 		html += file_array[i].name;
 		html += '" uid="';
@@ -719,7 +699,7 @@ function doPROPFIND(open_url, complete_handler, auth){
 								if( this_contenttype=="httpd/unix-directory" ){
 									
 									g_folder_array.push({ contenttype: this_contenttype, 
-										                  href: this_href,
+										                  furl: this_href,
 										                  name: this_name,
 										                  uname: this_uncode_name,
 										                  shortname: this_short_name,
@@ -736,7 +716,7 @@ function doPROPFIND(open_url, complete_handler, auth){
 								}				
 								else{
 									g_file_array.push({ contenttype: this_contenttype, 
-										                href: this_href, 
+										                furl: this_href, 
 										                name: this_name,
 										                uname: this_uncode_name,
 										                shortname: this_short_name,

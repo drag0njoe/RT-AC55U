@@ -184,7 +184,42 @@ int _ifconfig(const char *name, int flags, const char *addr, const char *netmask
 	struct ifreq ifr;
 	struct in_addr in_addr, in_netmask, in_broadaddr;
 
-	_dprintf("%s: name=%s flags=%04x %s addr=%s netmask=%s\n", __FUNCTION__, name, flags, (flags & IFUP)? "IFUP" : "", addr, netmask);
+#ifdef RTCONFIG_LANTIQ
+	if(strcmp(name, "wlan0") == 0 ||
+		strcmp(name, "wlan2") == 0){
+		if(flags == 0){
+			_dprintf("[%s][%d]skip name:[%s]\n", __func__, __LINE__, name);
+			return -1;
+		}
+		if(flags & IFUP){
+			if(strcmp(name, "wlan0") == 0 && (flags & IFUP)){
+				if(nvram_get_int("wl0_radio") == 0){
+					_dprintf("[%s][%d] wl0_radio=0, skip IFUP wlan0\n", __func__, __LINE__);
+					return -1;
+				}
+			}
+			if(strcmp(name, "wlan2") == 0 && (flags & IFUP)){
+				if(nvram_get_int("wl1_radio") == 0){
+					_dprintf("[%s][%d] wl1_radio=0, skip IFUP wlan2\n", __func__, __LINE__);
+					return -1;
+				}
+			}
+		}
+	}
+	if(strcmp(name, "eth0_1") == 0 ||
+		strcmp(name, "eth0_2") == 0 ||
+		strcmp(name, "eth0_3") == 0 ||
+		strcmp(name, "eth0_4") == 0){
+		set_hwaddr(name, get_lan_hwaddr());
+		if(flags == 0) return -1;
+	}
+#endif
+
+	_dprintf("%s: name=%s flags=%04x %s addr=%s netmask=%s\n", __FUNCTION__, name ? : "", 
+		flags, (flags & IFUP) ? "IFUP" : "", addr ? : "", netmask ? : "");
+
+	if (!name)
+		return -1;
 
 	/* Open a raw socket to the kernel */
 	if ((s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
@@ -333,11 +368,11 @@ static int route_manip(int cmd, char *name, int metric, char *dst, char *gateway
 
 	/* Fill in rtentry */
 	memset(&rt, 0, sizeof(rt));
-	if (dst)
+	if (dst && *dst)
 		inet_aton(dst, &sin_addr(&rt.rt_dst));
-	if (gateway)
+	if (gateway && *gateway)
 		inet_aton(gateway, &sin_addr(&rt.rt_gateway));
-	if (genmask)
+	if (genmask && *genmask)
 		inet_aton(genmask, &sin_addr(&rt.rt_genmask));
 	rt.rt_metric = metric;
 	rt.rt_flags = RTF_UP;
@@ -375,23 +410,6 @@ int route_del(char *name, int metric, char *dst, char *gateway, char *genmask)
 /* configure loopback interface */
 void config_loopback(void)
 {
-	struct ifreq ifr;
-	int sfd;
-
-	if (!((sfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0))
-	{
-		strcpy(ifr.ifr_name, "lo");
-		if (!ioctl(sfd, SIOCGIFFLAGS, &ifr) && (ifr.ifr_flags & IFF_UP))
-			ifconfig(ifr.ifr_name, 0, NULL, NULL);
-
-		close(sfd);
-	}
-#ifdef RTCONFIG_IPV6
-#ifdef RTCONFIG_BCMARM
-	if (!(ipv6_enabled() && is_routing_enabled()))
-	eval("ip", "-6", "addr", "flush", "dev", "lo", "scope", "host");
-#endif
-#endif
 	/* Bring up loopback interface */
 	ifconfig("lo", IFUP, "127.0.0.1", "255.0.0.0");
 
@@ -400,6 +418,75 @@ void config_loopback(void)
 }
 
 #ifdef RTCONFIG_IPV6
+static int ipv6_route_manip(int cmd, const char *name, int metric, const char *dst, const char *gateway, int flags)
+{
+	char addr[INET6_ADDRSTRLEN], *ptr;
+	int s, err = 0;
+	struct in6_rtmsg rt;
+	
+	_dprintf("%s: cmd=%s name=%s addr=%s gateway=%s metric=%d\n",
+		__FUNCTION__, cmd == SIOCADDRT ? "ADD" : "DEL", name, dst, gateway, metric);
+
+	/* Open a raw socket to the kernel */
+	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+		return errno;
+
+	/* Fill in rtentry */
+	memset(&rt, 0, sizeof(rt));
+	if (dst) {
+		strlcpy(addr, dst, sizeof(addr));
+		ptr = strchr(addr, '/');
+		if (ptr) {
+			*ptr++ = '\0';
+			rt.rtmsg_dst_len = atoi(ptr);
+		} else
+			rt.rtmsg_dst_len = 128;
+		inet_pton(AF_INET6, addr, &rt.rtmsg_dst);
+	}
+	if (gateway)
+		inet_pton(AF_INET6, gateway, &rt.rtmsg_gateway);
+	rt.rtmsg_metric = metric;
+	rt.rtmsg_flags = RTF_UP;
+	if (!IN6_IS_ADDR_UNSPECIFIED(&rt.rtmsg_gateway))
+		rt.rtmsg_flags |= RTF_GATEWAY;
+	if (rt.rtmsg_dst_len == 128)
+		rt.rtmsg_flags |= RTF_HOST;
+	rt.rtmsg_flags |= flags;
+
+	if (name) {
+		rt.rtmsg_ifindex = if_nametoindex(name);
+		if (rt.rtmsg_ifindex == 0) {
+			err = errno;
+			perror(name);
+			goto error;
+		}
+	}
+
+	if (ioctl(s, cmd, &rt) < 0) {
+		err = errno;
+		perror(name);
+	}
+
+error:
+	close(s);
+	return err;
+}
+
+int _ipv6_route_add(const char *name, int metric, const char *dst, const char *gateway, int flags)
+{
+	return ipv6_route_manip(SIOCADDRT, name, metric, dst, gateway, flags);
+}
+
+int ipv6_route_add(const char *name, int metric, const char *dst, const char *gateway)
+{
+	return ipv6_route_manip(SIOCADDRT, name, metric, dst, gateway, 0);
+}
+
+int ipv6_route_del(const char *name, int metric, const char *dst, const char *gateway)
+{
+	return ipv6_route_manip(SIOCDELRT, name, metric, dst, gateway, 0);
+}
+
 int ipv6_mapaddr4(struct in6_addr *addr6, int ip6len, struct in_addr *addr4, int ip4mask)
 {
 	int i = ip6len >> 5;
@@ -431,16 +518,20 @@ int ipv6_mapaddr4(struct in6_addr *addr6, int ip6len, struct in_addr *addr4, int
 /* configure/start vlan interface(s) based on nvram settings */
 int start_vlan(void)
 {
+#if !defined(HND_ROUTER) && !defined(BLUECAVE)
 	int s;
 	struct ifreq ifr;
 	int i, j;
 	char ea[ETHER_ADDR_LEN];
 
 	if ((strtoul(nvram_safe_get("boardflags"), NULL, 0) & BFL_ENETVLAN) == 0) return 0;
-	
+#endif
+#if !defined(BLUECAVE)
 	/* set vlan i/f name to style "vlan<ID>" */
 	eval("vconfig", "set_name_type", "VLAN_PLUS_VID_NO_PAD");
+#endif
 
+#if !defined(HND_ROUTER) && !defined(BLUECAVE)
 	/* create vlan interfaces */
 	if ((s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
 		return errno;
@@ -467,7 +558,7 @@ int start_vlan(void)
 		for (j = 1; j <= DEV_NUMIFS; j ++) {
 			ifr.ifr_ifindex = j;
 			if (ioctl(s, SIOCGIFNAME, &ifr))
-				continue;
+				continue;		
 			if (ioctl(s, SIOCGIFHWADDR, &ifr))
 				continue;
 			if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER)
@@ -482,6 +573,7 @@ int start_vlan(void)
 			ifr.ifr_data = (caddr_t)&info;
 			if (ioctl(s, SIOCETHTOOL, &ifr) < 0)
 				continue;
+
 			if (strcmp(info.driver, hwname) == 0)
 				break;
 #else
@@ -508,12 +600,27 @@ int start_vlan(void)
 		}
 	}
 	close(s);
+#endif
 
 #if (defined(RTCONFIG_QCA) || (defined(RTCONFIG_RALINK) && (defined(RTCONFIG_RALINK_MT7620) || defined(RTCONFIG_RALINK_MT7621))))
 	if(!nvram_match("switch_wantag", "none")&&!nvram_match("switch_wantag", "")&&!nvram_match("switch_wantag", "hinet"))
 	{
 #if defined(RTCONFIG_QCA)
+#if defined(RTCONFIG_SWITCH_RTL8370MB_PHY_QCA8033_X2)
+		char *wan_base_if = "eth1";	/* lan_1, WAN interface if IPTV is enabled. */
+#else
 		char *wan_base_if = "eth0";
+#endif
+#if defined(RTCONFIG_DETWAN)
+		char buf[32];
+		char *detwan_ifname;
+
+		if((detwan_ifname = nvram_get("detwan_ifname")) != NULL) {
+			strncpy(buf, detwan_ifname, sizeof(buf)-1);
+			buf[sizeof(buf)-1] = '\0';
+			wan_base_if = buf;
+		}
+#endif	/* RTCONFIG_DETWAN */
 #elif defined(RTCONFIG_RALINK)
 #if defined(RTCONFIG_RALINK_MT7620) /* RT-N14U, RT-AC52U, RT-AC51U, RT-N11P, RT-N54U, RT-AC1200HP, RT-AC54U */
 		char *wan_base_if = "eth2";
@@ -525,19 +632,16 @@ int start_vlan(void)
 	}
 #endif
 #ifdef CONFIG_BCMWL5
+#ifndef HND_ROUTER
 	if(!nvram_match("switch_wantag", "none")&&!nvram_match("switch_wantag", "")&&!nvram_match("switch_wantag", "hinet"))
 		set_wan_tag((char *) &ifr.ifr_name);
 #endif
-#if defined(RTCONFIG_RGMII_BRCM5301X) || defined(RTAC3100) || defined(RTAC5300R)
+#endif
+#if !defined(HND_ROUTER) && (defined(RTCONFIG_RGMII_BRCM5301X) || defined(RTCONFIG_BCM_7114))
 	switch (get_model()) {
 		case MODEL_RTAC88U:
 		case MODEL_RTAC3100:
 		case MODEL_RTAC5300:
-			break;
-		case MODEL_RTAC5300R:
-			logmessage("trunk", "enable BCM port1 and port2 trunking");
-			eval("et", "-i", "eth0", "robowr", "0x32", "0x00", "0x0A");
-			eval("et", "-i", "eth0", "robowr", "0x32", "0x12", "0x06");
 			break;
 		default:
 			// port 5 ??
@@ -548,15 +652,31 @@ int start_vlan(void)
 #endif
 
 #ifdef RTCONFIG_PORT_BASED_VLAN
+#ifndef HND_ROUTER
 	set_port_based_vlan_config(&ifr.ifr_name);
 #endif
+#endif
 
+#if defined(HND_ROUTER)
+	if(!nvram_match("switch_wantag", "") && (nvram_get_int("switch_stb_x") > 0 || nvram_match("switch_wantag", "unifi_biz") || nvram_match("switch_wantag", "manual"))) {
+		char *wan_base_if = "eth0";
+		ifconfig(wan_base_if, IFUP, NULL, NULL);
+		set_wan_tag(wan_base_if);
+	}
+#elif defined(BLUECAVE)
+	if(!nvram_match("switch_wantag", "") && (nvram_get_int("switch_stb_x") > 0 || nvram_match("switch_wantag", "unifi_biz") || nvram_match("switch_wantag", "manual"))) {
+		char *wan_base_if = "eth1";
+		ifconfig(wan_base_if, IFUP, NULL, NULL);
+		set_wan_tag(wan_base_if);
+	}
+#endif
 	return 0;
 }
 
 /* stop/rem vlan interface(s) based on nvram settings */
 int stop_vlan(void)
 {
+#if !defined(HND_ROUTER) && !defined(BLUECAVE)
 	int i;
 	char nvvar_name[16];
 	char vlan_id[16];
@@ -574,6 +694,7 @@ int stop_vlan(void)
 		snprintf(vlan_id, sizeof(vlan_id), "vlan%d", i);
 		eval("vconfig", "rem", vlan_id);
 	}
+#endif
 
 	return 0;
 }

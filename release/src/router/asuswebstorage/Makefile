@@ -7,11 +7,15 @@ include ../common.mak
 
 #C = $(CC)
 #TOP = $(TOP)
-CFLAGS = -I$(TOP)/curl-7.21.7/include  -I$(TOP)/libxml2/include  -I$(TOP)/openssl/include
+CFLAGS += -g -O2 -I$(TOP)/curl-7.21.7/include  -I$(TOP)/libxml2/include  -I$(TOP)/openssl/include
 CFLAGS += -I$(SRCBASE) -I$(SRCBASE)/include -I. -I$(TOP)/shared
 #CFLAGS = -g -rdynamic
 CFLAGS += -D_FILE_OFFSET_BITS=64
-LDFLAGS =  -L$(TOP)/curl-7.21.7/lib/.libs  -L$(TOP)/libxml2/.libs  -L$(TOP)/openssl -L$(TOP)/nvram${BCMEX} -L$(TOP)/shared -lshared
+LDFLAGS =  -L$(TOP)/curl-7.21.7/lib/.libs  -L$(TOP)/libxml2/.libs  -L$(TOP)/openssl -L$(TOP)/nvram${BCMEX}${EX7} -L$(TOP)/shared -lshared
+ifeq ($(HND_ROUTER),y)
+LDFLAGS += -L$(TOP)/wlcsm -lwlcsm -lgcc_s
+endif
+
 LIBS = -lcurl -lxml2 -lssl -lcrypto -lpthread -ldl -lnvram -lm
 
 ifeq ($(RTCONFIG_BCMARM),y)

@@ -68,6 +68,14 @@ extern void athrs27_reg_init();
 extern void athrs27_reg_init_lan();
 #endif
 
+#ifdef CONFIG_AP152_AR8033
+extern int athrs_ar8033_reg_init(void *arg);
+extern int athrs_ar8033_phy_setup(void  *arg);
+extern int athrs_ar8033_phy_is_fdx(int ethUnit);
+extern int athrs_ar8033_phy_is_link_alive(int phyUnit);
+extern int athrs_ar8033_phy_is_up(int ethUnit);
+extern int athrs_ar8033_phy_speed(int ethUnit,int phyUnit);
+#endif
 
 #if !defined(ASUS_PRODUCT)
 #ifdef CONFIG_ATH_NAND_BR
@@ -209,6 +217,7 @@ void ath_gmac_mii_setup(ath_gmac_mac_t *mac)
 	}
 
 	if ( CFG_ATH_GMAC_NMACS == 1){
+#if defined(CONFIG_ATHRS17_PHY)
 		printf("Dragonfly  ----> S17 PHY *\n");
 		mgmt_cfg_val = 7;
 
@@ -225,7 +234,28 @@ void ath_gmac_mii_setup(ath_gmac_mac_t *mac)
 		udelay(1000);
 		ath_gmac_reg_wr(mac, ATH_MAC_MII_MGMT_CFG, mgmt_cfg_val | (1 << 31));
 		ath_gmac_reg_wr(mac, ATH_MAC_MII_MGMT_CFG, mgmt_cfg_val);
-		return;		
+		return;
+#elif defined(CONFIG_AP152_AR8033)
+        	printf("Dragonfly ---->8033 PHY*\n");
+
+        	ath_reg_wr(ATH_ETH_CFG, ETH_CFG_ETH_RXDV_DELAY_SET(3) |
+					ETH_CFG_ETH_RXD_DELAY_SET(3)|
+					ETH_CFG_RGMII_GE0_SET(1) |
+					ETH_CFG_GE0_SGMII_SET(1) );
+
+		ath_reg_wr(ETH_XMII_ADDRESS, ETH_XMII_TX_INVERT_SET(1) |
+                			     ETH_XMII_RX_DELAY_SET(2)  |
+                			     ETH_XMII_TX_DELAY_SET(1)  |
+					     ETH_XMII_GIGE_SET(1));
+
+		udelay(1000);
+		
+		mgmt_cfg_val = 7;
+		ath_gmac_reg_wr(mac, ATH_MAC_MII_MGMT_CFG, mgmt_cfg_val | (1 << 31));
+		ath_gmac_reg_wr(mac, ATH_MAC_MII_MGMT_CFG, mgmt_cfg_val);
+		return;
+
+#endif
 	}
 
 }
@@ -449,7 +479,13 @@ static int ath_gmac_check_link(ath_gmac_mac_t *mac)
 
 	if(!mac->link) {
 		printf("%s link down\n",mac->dev->name);
+#if defined(MAPAC1750)
+		printf("Force to _1000BASET and duplex\n");
+		speed = _1000BASET;
+		duplex = 1; //TRUE or FALSE
+#else
 		return 0;
+#endif
 	}
 
 	switch (speed)
@@ -458,7 +494,12 @@ static int ath_gmac_check_link(ath_gmac_mac_t *mac)
 			ath_gmac_set_mac_if(mac, 1);
 			ath_gmac_reg_rmw_set(mac, ATH_MAC_FIFO_CFG_5, (1 << 19));
 
-			if (is_ar8033() && mac->mac_unit == 1) {
+#ifdef CONFIG_AP152_AR8033
+			if (is_ar8033())
+#else
+			if (is_ar8033() && mac->mac_unit == 1)
+#endif			
+			{
 				ath_reg_wr(ETH_SGMII_ADDRESS, ETH_SGMII_GIGE_SET(1) |
                                            ETH_SGMII_CLK_SEL_SET(1));
 			}
@@ -470,7 +511,12 @@ static int ath_gmac_check_link(ath_gmac_mac_t *mac)
 			ath_gmac_set_mac_speed(mac, 1);
 			ath_gmac_reg_rmw_clear(mac, ATH_MAC_FIFO_CFG_5, (1 << 19));
 
-                        if (is_ar8033() && mac->mac_unit == 1) {
+#ifdef CONFIG_AP152_AR8033
+						if (is_ar8033())
+#else
+                        if (is_ar8033() && mac->mac_unit == 1) 
+#endif
+						{
                         	ath_reg_wr(ETH_SGMII_ADDRESS, ETH_SGMII_PHASE0_COUNT_SET(1) |
                                            ETH_SGMII_PHASE1_COUNT_SET(1));
 			}
@@ -482,7 +528,13 @@ static int ath_gmac_check_link(ath_gmac_mac_t *mac)
 			ath_gmac_set_mac_speed(mac, 0);
 			ath_gmac_reg_rmw_clear(mac, ATH_MAC_FIFO_CFG_5, (1 << 19));
 
-
+#ifdef CONFIG_AP152_AR8033
+			if (is_ar8033()) {
+                        
+				ath_reg_wr(ETH_SGMII_ADDRESS, ETH_SGMII_PHASE0_COUNT_SET(19) |
+                                           ETH_SGMII_PHASE1_COUNT_SET(19));
+			}
+#endif
 			break;
 
 		default:
@@ -723,7 +775,7 @@ static void ath_gmac_get_ethaddr(struct eth_device *dev)
 void
 athr_mgmt_init(void)
 {
-#if defined (CONFIG_ATHRS17_PHY)
+#if defined (CONFIG_ATHRS17_PHY)||defined(CONFIG_AP152_AR8033)
 uint32_t rddata;
 
 // init MDI/ MDO/ MDC
@@ -899,7 +951,10 @@ int ath_gmac_enet_initialize(bd_t * bis)
 #ifdef CFG_ATHRS27_PHY
                 	athrs27_reg_init();
 #endif
-
+#ifdef CONFIG_AP152_AR8033
+					printf("AR8033 PHY init \n");
+					athrs_ar8033_reg_init(NULL);
+#endif
 
 		} else {
 

@@ -3524,6 +3524,7 @@
 #define ATH_SPI_CMD_WRITE_SR        0x01
 #define ATH_SPI_CMD_WREN        0x06
 #define ATH_SPI_CMD_RD_STATUS       0x05
+#define ATH_SPI_CMD_NORM_READ       0x03
 #define ATH_SPI_CMD_FAST_READ       0x0b
 #define ATH_SPI_CMD_PAGE_PROG       0x02
 #define ATH_SPI_CMD_SECTOR_ERASE    0xd8

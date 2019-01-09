@@ -3290,7 +3290,7 @@ endif
 	@./mkconfig -a board955x mips mips board955x atheros
 
 
-board956x_config pl-ac56_config pl-ac66u_config: unconfig
+board956x_config pl-ac56_config pl-ac66u_config rp-ac66_config map-ac1750_config: unconfig
 	@echo '#define CONFIG_ATHEROS		1'	>include/config.h
 	@echo '#define CONFIG_MACH_QCA956x	1'	>>include/config.h
 	@echo '#define CFG_INIT_STACK_IN_SRAM	1'	>>include/config.h
@@ -3305,6 +3305,11 @@ endif
 ifdef ddr_cas
 	@echo '#define CFG_DDR2_DRAGONFLY_CAS_LATENCY		$(ddr_cas)'	>>include/config.h
 endif
+
+ifdef ar8033_phy_id
+	@echo '#define ATH_AR8033_PHY_ID		$(ar8033_phy_id)'	>>include/config.h
+endif
+
 ifneq (,$(findstring $(CFG_BOARD_TYPE),cus249 tb753)) #{
 	@echo '#define CFG_ATH_GMAC_NMACS	2'	>>include/config.h
 	@echo '#define CFG_ATH_GE1_IS_CONNECTED 1' 	>>include/config.h
@@ -3317,7 +3322,9 @@ ifneq (,$(findstring $(CFG_BOARD_TYPE), ap152 tb755)) #{
 	@echo '#define CFG_ATH_GMAC_NMACS	1'	>>include/config.h
 	@echo '#define CFG_ATH_GE1_IS_CONNECTED 1' 	>>include/config.h
 	@echo '#define CONFIG_ATHRS_GMAC_SGMII  1'      >>include/config.h
+ifneq ($(ETH_CONFIG2), _ar8033)
 	@echo '#define ATH_S17_MAC0_SGMII	1'	>>include/config.h
+endif
 endif #}
 ifeq ($(ATH_DUAL_FLASH),1)
 	@echo '#define CONFIG_ATH_NAND_SUPPORT	1'	>>include/config.h
@@ -3352,6 +3359,9 @@ endif #}
 
 ifeq ($(CFG_BOARD_TYPE), ap152)
 	@echo '#define CONFIG_ATHRS_GMAC_SGMII	1'	>>include/config.h
+ifeq ($(ETH_CONFIG2), _ar8033)
+	@echo '#define CONFIG_AP152_AR8033	1'	>>include/config.h
+endif
 endif
 
 ifeq ($(ETH_CONFIG), _s27)

@@ -96,10 +96,14 @@ function initial(){
 	else{
 		document.getElementById("game_boost_enable").checked = false;
 	}
-	
+
 }
 function check_game_boost(){
 	if(document.getElementById("game_boost_enable").checked){
+		if(!reset_wan_to_fo(document.form, 1)) {
+			document.getElementById("game_boost_enable").checked = false;
+			return false;
+		}
 		document.form.qos_enable.value = '1';
 		document.form.qos_type.value = '1';
 		document.form.bwdpi_app_rulelist.disabled = false;
@@ -109,7 +113,7 @@ function check_game_boost(){
 		document.form.qos_enable.value = '0';
 		document.form.bwdpi_app_rulelist.disabled = true;
 	}
-	
+
 	if(ctf_disable == 1){
 		document.form.action_script.value = "restart_qos;restart_firewall";
 	}
@@ -120,13 +124,40 @@ function check_game_boost(){
 		else{
 			if(document.form.qos_type.value == 0)
 				FormActions("start_apply.htm", "apply", "reboot", "<% get_default_reboot_time(); %>");
-			else{				
+			else{
 				document.form.action_script.value = "restart_qos;restart_firewall";
-			}					
+			}
 		}
 	}
 	
 	document.form.submit();
+}
+
+function show_tm_eula(){
+	$.get("tm_eula.htm", function(data){
+		document.getElementById('agreement_panel').innerHTML= data;
+		var url = "https://www.asus.com/Microsite/networks/Trend_Micro_EULA/";
+		$("#eula_url").attr("href",url);
+		url = "https://www.trendmicro.com/en_us/about/legal/privacy-policy-product.html"
+		$("#tm_eula_url").attr("href",url);
+		url = "https://success.trendmicro.com/data-collection-disclosure";
+		$("#tm_disclosure_url").attr("href",url);
+		adjust_TM_eula_height("agreement_panel");
+	});
+
+	dr_advise();
+	cal_panel_block("agreement_panel", 0.25);
+	$("#agreement_panel").fadeIn(300);
+}
+
+function eula_confirm(){
+	document.form.TM_EULA.value = 1;
+	document.form.action_wait.value = "15";
+	check_game_boost();
+}
+
+function cancel(){
+	refreshpage();
 }
 </script>
 </head>
@@ -151,7 +182,7 @@ function check_game_boost(){
 <div>
 	<table class="content" align="center" cellspacing="0" style="margin:auto;">
 		<tr>
-			<td width="17">&nbsp;</td>	
+			<td width="17">&nbsp;</td>
 			<!--=====Beginning of Main Menu=====-->
 			<td valign="top" width="202">
 				<div id="mainMenu"></div>
@@ -161,7 +192,7 @@ function check_game_boost(){
 				<div id="tabMenu" style="*margin-top: -160px;"></div>
 				<br>
 		<!--=====Beginning of Main Content=====-->
-				<div id="applist_table" style="background:url('images/New_ui/mainimage_img_Game.jpg');background-repeat: no-repeat;border-radius:3px;">
+				<div id="FormTitle" style="background:url('images/New_ui/mainimage_img_Game.jpg');background-repeat: no-repeat;margin-top:-15px;border-radius:3px;">
 					<table style="padding-left:10px;">
 						<tr>
 							<td class="formfonttitle">
@@ -169,7 +200,7 @@ function check_game_boost(){
 									<table width="730px">
 										<tr>
 											<td align="left">
-												
+
 												<div style="display:table-cell;background:url('/images/New_ui/game.svg');width:77px;height:77px;"></div>
 												<div class="formfonttitle" style="display:table-cell;font-size:26px;font-weight:bold;color:#EBE8E8;vertical-align:middle"><#Game_Boost#></div>
 											</td>
@@ -177,7 +208,7 @@ function check_game_boost(){
 									</table>
 								</div>
 							</td>
-						</tr> 
+						</tr>
 					<!-- Service table -->
 						<tr>
 							<td valign="top" height="0px">
@@ -186,17 +217,17 @@ function check_game_boost(){
 										<tbody>
 											<tr>
 												<td style="width:200px">
-													<div style="padding: 5px 0;font-size:20px;"><#Game_Boost_internet#></div>													
+													<div style="padding: 5px 0;font-size:20px;"><#Game_Boost_internet#></div>
 												</td>
 												<td colspan="2">
 													<div style="padding: 5px 10px;font-size:20px;color:#FFCC66">WTFast GPN</div>
 												</td>
 											</tr>
 											<tr>
-												<td colspan="3">									
+												<td colspan="3">
 													<div style="width:100%;height:1px;background-color:#D30606"></div>
 												</td>
-											</tr>		
+											</tr>
 											<tr>
 												<td align="center" style="width:85px">
 													<img style="padding-right:10px;;" src="/images/New_ui/GameBoost_WTFast.png" >
@@ -220,10 +251,10 @@ function check_game_boost(){
 												</td>
 											</tr>
 											<tr>
-												<td colspan="3">									
+												<td colspan="3">
 													<div style="width:100%;height:1px;background-color:#D30606"></div>
 												</td>
-											</tr>	
+											</tr>
 											<tr>
 												<td align="center" style="width:85px;">
 													<div style="width:97px;height:71px;background:url('images/New_ui/GameBoost_QoS.png');no-repeat"></div>
@@ -249,7 +280,7 @@ function check_game_boost(){
 													</div>
 												</td>
 											</tr>
-									
+
 											<tr style="height:50px;"></tr>
 											<tr>
 												<td>
@@ -260,7 +291,7 @@ function check_game_boost(){
 												</td>
 											</tr>
 											<tr>
-												<td colspan="3">									
+												<td colspan="3">
 													<div style="width:100%;height:1px;background-color:#D30606"></div>
 												</td>
 											</tr>
@@ -276,12 +307,12 @@ function check_game_boost(){
 												<td>
 													<div class="btn" style="margin:auto;width:100px;height:40px;text-align:center;line-height:40px;font-size:18px;cursor:pointer;border-radius:5px;" onclick="location.href='AiProtection_HomeProtection.asp';"><#btn_go#></div>
 												</td>
-											</tr>	
+											</tr>
 										</tbody>
-									</table>	
+									</table>
 								</div>
-							</td> 
-						</tr>  
+							</td>
+						</tr>
 					</table>
 				</div>
 		<!--=====End of Main Content=====-->
@@ -294,4 +325,3 @@ function check_game_boost(){
 <div id="footer"></div>
 </body>
 </html>
-

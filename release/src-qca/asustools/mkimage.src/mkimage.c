@@ -200,6 +200,14 @@ main (int argc, char **argv)
 	struct stat sbuf;
 	unsigned char *ptr;
 	char *name = "";
+#ifdef TRX_NEW
+	char *sn = NULL, *en = NULL;
+	char tmp[10];
+	uint8_t lrand = 0;
+	uint8_t rrand = 0;
+	uint32_t linux_offset = 0;
+	uint32_t rootfs_offset = 0;
+#endif	
 	memset(&tail_pre, 0, sizeof(tail_pre));
 
 	cmdname = *argv;
@@ -276,9 +284,21 @@ main (int argc, char **argv)
 				if ((argc-=10) < 0)
 					usage ();
 				sscanf(argv[1], "%d.%d", &tail_pre.kernel.major, &tail_pre.kernel.minor);
-				sscanf(argv[2], "%d.%d", &tail_pre.fs.major, &tail_pre.fs.minor);   
-				for(i=0; i<(MAX_VER*2); i++)
+				sscanf(argv[2], "%d.%d", &tail_pre.fs.major, &tail_pre.fs.minor); 
+#ifdef TRX_NEW	
+				sscanf(argv[3], "%d", &sn);
+				sscanf(argv[4], "%d-%s", &en, tmp);   
+				tail_pre.sn = (uint16_t)sn;
+				tail_pre.en = (uint16_t)en;
+			
+				for(i=0; i<3; i++) {
+					sscanf(argv[i+5], "%d.%d", &tail_pre.hw[i].major, &tail_pre.hw[i].minor);
+				}
+#else
+				for(i=0; i<(MAX_VER*2); i++) 
 					sscanf(argv[i+3], "%d.%d", &tail_pre.hw[i].major, &tail_pre.hw[i].minor);
+			
+#endif				
 				argv+=10;
 				vargv=1;
 				goto NXTARG;
@@ -522,10 +542,41 @@ NXTARG:		;
 	else
 	{
 		strncpy((char *)tail_pre.productid, name, MAX_STRING);
+
+#ifdef TRX_NEW
+		linux_offset = rfs_offset / 2 ;  
+		lrand = *(ptr + linux_offset); //get kernel data
+	//printf("rfs_offset = %02x  lrand = %02x linux_offset=%02x\n", rfs_offset, lrand, linux_offset);	
+		rootfs_offset =  rfs_offset + ((sbuf.st_size  - rfs_offset) / 2 );
+		rrand = *(ptr + rootfs_offset);	//get rootfs data
+	//printf("rfs_offset = %02x  rrand = %02x  hdr->ih_size = %02x rootfs_offset=%02x\n", rfs_offset, rrand, sbuf.st_size - sizeof(image_header_t), rootfs_offset);		
+	
+	tail_pre.pkey = lrand; 
+
+	if (rrand== 0x0)
+		tail_pre.key = 0xfd + lrand % 3;
+	else
+		tail_pre.key = 0xff - rrand + lrand;
+
+	//printf ("Pkey:         %02x\n", tail_pre.pkey);
+	//printf ("Key:          %02x\n", tail_pre.key);     
+#endif	
+			tail_pre.hw[0].major = lrand + rrand;
+			tail_pre.hw[0].minor = lrand + 0xa1;
+			tail_pre.hw[1].major = 2 * lrand + rrand;
+			tail_pre.hw[1].minor = lrand + 0xb2;
+			tail_pre.hw[2].major = 3 * lrand + rrand;
+			tail_pre.hw[2].minor = lrand + 0xc3;
+
 		memcpy(&hdr->u.tail, &tail_pre, sizeof(TAIL));
 
 		if (rfs_offset) {
+#ifdef TRX_NEW	
+
+			version_t *v1 = &hdr->u.tail.hw[MAX_VER - 2], *v2 = v1+1;
+#else
 			version_t *v1 = &hdr->u.tail.hw[MAX_VER*2 - 2], *v2 = v1+1;
+#endif			
 			union {
 				uint32_t rfs_offset_net_endian;
 				uint8_t p[4];
@@ -542,6 +593,7 @@ NXTARG:		;
 			v2->minor = u.p[3];
 		}
 	}
+
 	checksum = crc32(0,(const char *)hdr,sizeof(image_header_t));
 
 	hdr->ih_hcrc = htonl(checksum);
@@ -707,8 +759,12 @@ print_header (image_header_t *hdr)
 		printf ("Kernel Ver.:  %d.%d\n", hdr->u.tail.kernel.major, hdr->u.tail.kernel.minor);
 		printf ("FS Ver:       %d.%d\n", hdr->u.tail.fs.major, hdr->u.tail.fs.minor);
 		printf ("Hardware Compatible List:\n");
-
-		for(i=0; i<(MAX_VER*2); i++, hw++) {
+#ifdef TRX_NEW
+		for(i=0; i<(MAX_VER); i++, hw++) 
+#else
+		for(i=0; i<(MAX_VER*2); i++, hw++) 
+#endif	
+		{		
 			if (hw->major == ROOTFS_OFFSET_MAGIC) {
 				u.p[1] = hw->minor;
 				hw++;

@@ -53,8 +53,9 @@ function initial(){
 			</td>	
 			<td valign="top">
 				<div id="tabMenu" class="submenuBlock"></div>
+				<br>
 		<!--=====Beginning of Main Content=====-->
-				<div class="app_table" id="applist_table">
+				<div class="app_table app_table_usb" id="FormTitle">
 					<table>
 						<tr>
 							<td class="formfonttitle">
@@ -107,11 +108,11 @@ function initial(){
 												</td>
 												<td class="app_table_radius_right" style="width:350px;height:120px;">
 													<div class="app_name">
-														<a style="text-decoration: underline;" href="AiProtection_WebProtector.asp"><#Parental_Control#></a>
+														<a id="Link_to_ParentalCtrl" style="text-decoration: underline;" href="AiProtection_WebProtector.asp"><#Parental_Control#></a>
 													</div>
 													<div class="app_desc" style="height:60px;">
-														<li><#Time_Scheduling#></li>
-														<li><#AiProtection_filter#></li>											
+														<li id="item_time_scheduling"><#Time_Scheduling#></li>
+														<li id="item_filter"><#AiProtection_filter#></li>											
 													</div>
 												</td>
 											</tr>

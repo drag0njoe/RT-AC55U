@@ -142,15 +142,24 @@ athrs_ar8033_phy_speed(int ethUnit)
 int 
 athrs_ar8033_reg_init(void *arg)
 {
+#ifdef CONFIG_AP152_AR8033
+	int phyid = ATH_AR8033_PHY_ID; 
 
+#ifndef CONFIG_MACH_QCA956x
+	athrs_ar8033_mgmt_init();
 
+	phy_reg_write(0, phyid, 0x1f, 0x101);
+#endif
+
+	printf("%s: Done %x (phyid: %d) \n",__func__, phy_reg_read(0, phyid, 0x1f), phyid);
+#else
 	athrs_ar8033_mgmt_init();
 	phy_reg_write(0x1,0x5, 0x1f, 0x101);
 
 
 
 	printf("%s: Done %x \n",__func__, phy_reg_read(0x1,0x5,0x1f));
-   
+#endif   
 	return 0;
 }
 
